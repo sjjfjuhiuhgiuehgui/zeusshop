@@ -1,0 +1,22 @@
+# ---- secrets / env ----
+*.env
+!*.env.example
+server/cmd/server/.env
+
+# ---- build / binary ----
+server/cmd/server/app
+server/bin/
+*.log
+
+# ---- node / frontend ----
+web/node_modules/
+web/dist/
+
+# ---- macOS / editor ----
+.DS_Store
+.vscode/
+
+# ignore envs
+.env
+server/.env
+
