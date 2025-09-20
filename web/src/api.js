@@ -1,12 +1,11 @@
 // web/src/api.js
 import axios from 'axios'
 
-// 允許用環境變數覆蓋，預設本機後端
-const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+// 正式環境請用 /api，本地開發可在 .env 設 VITE_API_BASE=http://127.0.0.1:8080
+const BASE_URL = (import.meta.env && import.meta.env.VITE_API_BASE) ?? '/api'
 
-// 建立 axios instance（全站統一用這個）
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: BASE_URL,      // ⚠️ 已含 /api
   withCredentials: false,
 })
 
@@ -14,10 +13,13 @@ const api = axios.create({
 export const getAdminToken = () => localStorage.getItem('adminToken')
 export const setAdminToken = (t) => localStorage.setItem('adminToken', t)
 
-// 自動帶上 Admin Token（若存在 localStorage）
+// 自動帶上 Admin Token（僅 admin 路徑）
 api.interceptors.request.use(cfg => {
   const t = getAdminToken()
-  if (t) cfg.headers['X-Admin-Token'] = t
+  const path = cfg.url || ''
+  if (t && (path.startsWith('/admin/') || path.startsWith('admin/'))) {
+    cfg.headers['X-Admin-Token'] = t
+  }
   return cfg
 })
 
@@ -40,43 +42,42 @@ api.interceptors.response.use(
 )
 
 /* ==========
- * Public APIs
+ * Public APIs（⚠️ 路徑不再含 /api）
  * ========== */
 export const listProducts = async () =>
-  (await api.get('/api/products')).data.items
+  (await api.get('/products')).data.items
 
 export const getProduct = async (id) =>
-  (await api.get(`/api/products/${id}`)).data
+  (await api.get(`/products/${id}`)).data
 
 export const createOrder = async (payload) =>
-  (await api.post('/api/orders', payload)).data
+  (await api.post('/orders', payload)).data
 
 export const updateOrderRemit = async (id, payload) =>
-  (await api.put(`/api/orders/${id}/remit`, payload)).data
+  (await api.put(`/orders/${id}/remit`, payload)).data
 
 /* ==========
  * Admin APIs（需 X-Admin-Token）
  * ========== */
 export const adminListOrders = async () =>
-  (await api.get('/api/admin/orders')).data.items
+  (await api.get('/admin/orders')).data.items
 
 export const adminGetOrder = async (id) =>
-  (await api.get(`/api/admin/orders/${id}`)).data
+  (await api.get(`/admin/orders/${id}`)).data
 
 export const adminUpdateOrderStatus = async (id, status) =>
-  (await api.put(`/api/admin/orders/${id}/status`, { status })).data
+  (await api.put(`/admin/orders/${id}/status`, { status })).data
 
 export const adminDeleteOrder = async (id) =>
-  (await api.delete(`/api/admin/orders/${id}`)).data
+  (await api.delete(`/admin/orders/${id}`)).data
 
-// 產品管理（依你專案路由補齊）
 export const adminCreateProduct = async (payload) =>
-  (await api.post('/api/admin/products', payload)).data
+  (await api.post('/admin/products', payload)).data
 
 export const adminUpdateProduct = async (id, payload) =>
-  (await api.put(`/api/admin/products/${id}`, payload)).data
+  (await api.put(`/admin/products/${id}`, payload)).data
 
 export const adminDeleteProductAdmin = async (id) =>
-  (await api.delete(`/api/admin/products/${id}`)).data
+  (await api.delete(`/admin/products/${id}`)).data
 
 export default api
