@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourname/shop-mvp/internal/cache"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/cache"
 	"gorm.io/gorm"
 )
 
