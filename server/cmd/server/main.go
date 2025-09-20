@@ -8,12 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 
 	// 你的專案模組路徑（依 go.mod）
-	"github.com/yourname/shop-mvp/internal/cache"
-	"github.com/yourname/shop-mvp/internal/config"
-	"github.com/yourname/shop-mvp/internal/db"
-	"github.com/yourname/shop-mvp/internal/middleware"
-	"github.com/yourname/shop-mvp/internal/order"
-	"github.com/yourname/shop-mvp/internal/product"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/cache"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/config"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/db"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/middleware"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/order"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/product"
 )
 
 func main() {

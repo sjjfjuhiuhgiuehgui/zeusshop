@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 
 	// 你的快取封裝（若之後沒用到也無妨）
-	"github.com/yourname/shop-mvp/internal/cache"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/cache"
 )
 
 type Repo struct {

@@ -7,8 +7,8 @@ import (
 	"gorm.io/gorm"
 
 	// 用你 go.mod 的 module 路徑
-	"github.com/yourname/shop-mvp/internal/order"
-	"github.com/yourname/shop-mvp/internal/product"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/order"
+	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/product"
 )
 
 func MustOpen(dsn string) *gorm.DB {
