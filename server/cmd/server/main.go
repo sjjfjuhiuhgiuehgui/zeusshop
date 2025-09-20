@@ -60,7 +60,7 @@ func main() {
 	// Health
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
 
-	// Public APIs
+	// Public APIs（後端維持 /api 前綴；前端 baseURL=/api，呼叫不再含 /api）
 	ph := product.NewHandler(gormDB, rdb) // 產品（前台）
 	r.GET("/api/products", ph.List)
 	r.GET("/api/products/:id", ph.Get)

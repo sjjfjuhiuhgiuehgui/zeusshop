@@ -1,6 +1,5 @@
 module github.com/sjjfjuhiuhgiuehgui/zeusshop/server
 
-
 go 1.22
 
 require (
