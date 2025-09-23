@@ -22,14 +22,14 @@ export default function AdminLogin() {
     <div style={{maxWidth:400, margin:"50px auto", padding:20, border:"1px solid #ccc", borderRadius:8}}>
       <h2>管理員登入</h2>
       <p style={{color:'#666', fontSize:14, lineHeight:1.6}}>
-        
+        請輸入管理者金鑰
       </p>
       <form onSubmit={submit} style={{display:"grid", gap:12}}>
         <input
           type="password"
           value={pwd}
           onChange={(e)=>setPwd(e.target.value)}
-          placeholder="請輸入管理 Token（與後端一致）"
+          placeholder="請輸入管理者金鑰"
           style={{padding:8, fontSize:16}}
         />
         <button type="submit" style={{padding:10}}>登入</button>
