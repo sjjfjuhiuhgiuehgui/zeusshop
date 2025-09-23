@@ -1,22 +1,15 @@
-# ---- secrets / env ----
-*.env
-!*.env.example
-server/cmd/server/.env
-
-# ---- build / binary ----
-server/cmd/server/app
-server/bin/
-*.log
-
-# ---- node / frontend ----
+# dependencies
+node_modules/
 web/node_modules/
+# builds
+dist/
 web/dist/
 
-# ---- macOS / editor ----
-.DS_Store
-.vscode/
-
-# ignore envs
+# env & system
 .env
-server/.env
+.DS_Store
 
+# locks (依你用哪個就保留)
+package-lock.json
+yarn.lock
+# pnpm-lock.yaml 是需要的，請不要忽略
