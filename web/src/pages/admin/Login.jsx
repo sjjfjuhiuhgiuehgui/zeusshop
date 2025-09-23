@@ -22,7 +22,7 @@ export default function AdminLogin() {
     <div style={{maxWidth:400, margin:"50px auto", padding:20, border:"1px solid #ccc", borderRadius:8}}>
       <h2>管理員登入</h2>
       <p style={{color:'#666', fontSize:14, lineHeight:1.6}}>
-        請輸入後端設定的 <code>ADMIN_TOKEN</code>（例如 <code>secret123</code>）。
+        
       </p>
       <form onSubmit={submit} style={{display:"grid", gap:12}}>
         <input
