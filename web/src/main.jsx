@@ -13,6 +13,7 @@ import ProductDetail from './pages/ProductDetail'
 import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
 import PaymentInfo from './pages/PaymentInfo'
+import Favorites from './pages/Favorites'
 
 // Pages（後台）
 import AdminLogin from './pages/admin/Login'
@@ -26,7 +27,7 @@ import CategoryPage from './pages/CategoryPage.jsx'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // Icons（header / 管理項）
-import { Menu, Bell, ShoppingCart, Home as HomeIcon, Lock, ListChecks, LogOut } from 'lucide-react'
+import { Menu, Heart, ShoppingCart, Home as HomeIcon, Lock, ListChecks, LogOut } from 'lucide-react'
 
 // 分類設定
 import { CATEGORIES, makeMatcher } from './data/categories'
@@ -74,9 +75,10 @@ function Header() {
             <button onClick={() => setOpen(true)} className="p-2 -ml-1 active:scale-[0.98]">
               <Menu className="w-6 h-6" />
             </button>
-            <button onClick={() => navigate('/#news')} className="p-2">
-              <Bell className="w-5 h-5" />
+            <button onClick={() => navigate('/favorites')} className="p-2">
+              <Heart className="w-5 h-5" />
             </button>
+
           </div>
 
           <button onClick={() => navigate('/')} className="text-lg font-extrabold tracking-wide">
@@ -211,6 +213,8 @@ function App() {
           <Route path="/cart" element={<Cart/>} />
           <Route path="/checkout" element={<Checkout/>} />
           <Route path="/payment/:id" element={<PaymentInfo/>} />
+          <Route path="/favorites" element={<Favorites />} />
+
 
           {/* 後台 */}
           <Route path="/admin/login" element={<AdminLogin/>} />
