@@ -346,16 +346,16 @@ export default function MobileShopHome() {
     return list;
   }, [activeCat, keyword]);
 
-  // [ZEUS] 將首頁（或目前視圖）的商品清單注入到全域，讓 ProductDetail 可直接使用
+  // ✅ 將首頁清單注入全域，詳情頁可直接讀到
   useEffect(() => {
-    const arr = products; // 若你想注入當前過濾後清單，改成 const arr = filtered;
+    const arr = products; // 若想注入篩選後清單，改成 filtered，並改動依賴陣列
     if (Array.isArray(arr) && arr.length) {
       const prev = Array.isArray(window.__ZEUS_PRODUCTS__) ? window.__ZEUS_PRODUCTS__ : [];
       const byId = new Map(prev.map((p) => [String(p.id), p]));
-      arr.forEach((p) => byId.set(String(p.id), p)); // 以 id 合併去重
+      arr.forEach((p) => byId.set(String(p.id), p));
       window.__ZEUS_PRODUCTS__ = Array.from(byId.values());
     }
-  }, [products]); // 若上面用 filtered，這裡也改成 [filtered]
+  }, [products]);
 
   // 購物車
   const onAdd = (p) => {
