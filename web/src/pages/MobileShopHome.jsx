@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -345,6 +345,17 @@ export default function MobileShopHome() {
     }
     return list;
   }, [activeCat, keyword]);
+
+  // [ZEUS] 將首頁（或目前視圖）的商品清單注入到全域，讓 ProductDetail 可直接使用
+  useEffect(() => {
+    const arr = products; // 若你想注入當前過濾後清單，改成 const arr = filtered;
+    if (Array.isArray(arr) && arr.length) {
+      const prev = Array.isArray(window.__ZEUS_PRODUCTS__) ? window.__ZEUS_PRODUCTS__ : [];
+      const byId = new Map(prev.map((p) => [String(p.id), p]));
+      arr.forEach((p) => byId.set(String(p.id), p)); // 以 id 合併去重
+      window.__ZEUS_PRODUCTS__ = Array.from(byId.values());
+    }
+  }, [products]); // 若上面用 filtered，這裡也改成 [filtered]
 
   // 購物車
   const onAdd = (p) => {
