@@ -78,7 +78,6 @@ function Header() {
             <button onClick={() => navigate('/favorites')} className="p-2">
               <Heart className="w-5 h-5" />
             </button>
-
           </div>
 
           <button onClick={() => navigate('/')} className="text-lg font-extrabold tracking-wide">
@@ -105,13 +104,12 @@ function Header() {
   )
 }
 
-/* ---------------- 左側抽屜：列出全部分類 + 最底部賣家區塊 ---------------- */
+/* ---------------- 左側抽屜 ---------------- */
 function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* 蒙層 */}
           <motion.div
             className="fixed inset-0 z-40 bg-black/40"
             onClick={onClose}
@@ -119,7 +117,6 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
-          {/* 側欄 */}
           <motion.aside
             className="fixed left-0 top-0 bottom-0 z-50 w-80 max-w-[82%] bg-white shadow-2xl flex flex-col"
             initial={{ x: -340 }}
@@ -132,7 +129,6 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
               <button onClick={onClose} className="p-1 text-neutral-600">✕</button>
             </div>
 
-            {/* 上半部：首頁 + 全部分類 */}
             <nav className="p-2 overflow-auto flex-1">
               <NavItem label="首頁" icon={HomeIcon} onClick={() => onNavigate('/')} />
               <div className="px-4 pt-3 pb-1 text-xs text-neutral-500">全部分類</div>
@@ -143,7 +139,6 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
               </div>
             </nav>
 
-            {/* 底部：賣家登入 / 訂單管理 */}
             <div className="border-t p-2">
               {!authed ? (
                 <NavItem label="賣家登入" icon={Lock} onClick={() => onNavigate('/admin/login')} />
@@ -174,10 +169,10 @@ function NavItem({ label, onClick, icon: Icon }) {
   )
 }
 
-/* ---------------- 桌面殼：包桌面/後台頁 ---------------- */
+/* ---------------- 桌面殼 ---------------- */
 function DesktopShell() {
   return (
-    <div style={{maxWidth: 960, margin: '0 auto', padding: 16}}>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
       <Header />
       <Outlet />
     </div>
@@ -189,12 +184,11 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 桌面殼（有 Header + 960px 容器） */}
         <Route element={<DesktopShell />}>
           {/* 首頁 */}
-          <Route path="/" element={<Home/>} />
+          <Route path="/" element={<Home />} />
 
-          {/* 用 config 自動產生所有分類頁 */}
+          {/* 用 config 產生所有分類頁 */}
           {CATEGORIES.map(cat => (
             <Route
               key={cat.key}
@@ -209,17 +203,16 @@ function App() {
           ))}
 
           {/* 其他頁 */}
-          <Route path="/product/:id" element={<ProductDetail/>} />
-          <Route path="/cart" element={<Cart/>} />
-          <Route path="/checkout" element={<Checkout/>} />
-          <Route path="/payment/:id" element={<PaymentInfo/>} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/payment/:id" element={<PaymentInfo />} />
           <Route path="/favorites" element={<Favorites />} />
 
-
           {/* 後台 */}
-          <Route path="/admin/login" element={<AdminLogin/>} />
-          <Route path="/admin/orders" element={<RequireAdmin><Orders/></RequireAdmin>} />
-          <Route path="/admin/orders/:id" element={<RequireAdmin><OrderDetail/></RequireAdmin>} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/orders" element={<RequireAdmin><Orders /></RequireAdmin>} />
+          <Route path="/admin/orders/:id" element={<RequireAdmin><OrderDetail /></RequireAdmin>} />
         </Route>
       </Routes>
     </BrowserRouter>
