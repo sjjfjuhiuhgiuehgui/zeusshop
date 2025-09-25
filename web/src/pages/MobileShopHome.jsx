@@ -184,10 +184,11 @@ function Banner() {
 /* ===========================
    商品卡
    =========================== */
-function ProductCard({ p, onAdd, onOpen }) {
+function ProductCard({ p, onAdd }) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-neutral-200">
-      <button onClick={onOpen} className="w-full text-left">
+      {/* 用 Link 取代 button，直接導頁 */}
+      <Link to={`/product/${p.id}`} className="block w-full text-left">
         <div className="aspect-[3/4] overflow-hidden">
           <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
         </div>
@@ -195,7 +196,8 @@ function ProductCard({ p, onAdd, onOpen }) {
           <div className="text-sm line-clamp-2 min-h-[2.5rem]">{p.name}</div>
           <div className="mt-1 font-semibold">{formatMoney(p.price)}</div>
         </div>
-      </button>
+      </Link>
+
       <div className="px-3 pb-3">
         <button
           onClick={onAdd}
