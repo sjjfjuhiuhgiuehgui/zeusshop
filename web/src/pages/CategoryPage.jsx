@@ -1,71 +1,72 @@
-import React, { useEffect, useMemo } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { products } from "../data/products";
-import ProductCard from "../components/ProductCard";
+import React, { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import ProductCard from '../components/ProductCard'
+import { products } from '../data/products'
+import { ArrowLeft } from 'lucide-react'
 
-const slugToKey = {
-  "computers-office": "3c",
-  appliances: "appliances",
-  beauty: "beauty",
-  baby: "baby",
-};
-const keyToLabel = {
-  "3c": "電腦／事務設備",
-  appliances: "家電",
-  beauty: "美妝",
-  baby: "母嬰",
-};
+export default function CategoryPage({ title, matcher }) {
+  const navigate = useNavigate()
+  const [sort, setSort] = useState('new')
 
-export default function CategoryPage() {
-  const { slug } = useParams();
-  const navigate = useNavigate();
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1)
+    else navigate('/')
+  }
 
-  const categoryKey = slugToKey[slug] ?? slug ?? "all";
-  const categoryLabel = keyToLabel[categoryKey] ?? categoryKey;
+  const filtered = useMemo(() => {
+    let a = products.filter(p => matcher(p))
+    if (sort === 'price_desc') a.sort((x,y)=> y.price - x.price)
+    else if (sort === 'price_asc') a.sort((x,y)=> x.price - y.price)
+    else if (sort === 'name_asc') a.sort((x,y)=> x.name.localeCompare(y.name, 'zh-Hant'))
+    else a.sort((x,y)=> y.id - x.id)
+    return a
+  }, [sort, matcher])
 
-  const list = useMemo(() => {
-    if (categoryKey === "all") return products;
-    return products.filter((p) => String(p.category) === String(categoryKey));
-  }, [categoryKey]);
-
-  // 把本頁清單注入全域，詳情頁可立即讀到
-  useEffect(() => {
-    if (Array.isArray(list) && list.length) {
-      const prev = Array.isArray(window.__ZEUS_PRODUCTS__) ? window.__ZEUS_PRODUCTS__ : [];
-      const byId = new Map(prev.map((p) => [String(p.id), p]));
-      list.forEach((p) => byId.set(String(p.id), p));
-      window.__ZEUS_PRODUCTS__ = Array.from(byId.values());
-    }
-  }, [list]);
+  const onAdd = (p)=>{
+    const cart = JSON.parse(localStorage.getItem('cart')||'[]')
+    const idx = cart.findIndex(x=>x.productId===p.id)
+    if(idx>=0){ const next=[...cart]; next[idx].quantity++; localStorage.setItem('cart', JSON.stringify(next)) }
+    else { localStorage.setItem('cart', JSON.stringify([...cart, {productId:p.id, name:p.name, price:p.price, imageUrl:p.imageUrl, quantity:1}])) }
+    alert('已加入購物車')
+  }
 
   return (
-    <div className="min-h-[100dvh] bg-neutral-50 pb-16">
-      <nav className="mx-auto flex max-w-6xl items-center gap-2 px-4 pt-6 text-sm text-neutral-500">
-        <Link to="/" className="hover:text-neutral-800">首頁</Link>
-        <span>/</span>
-        <span className="text-neutral-800">{categoryLabel}</span>
-        <button onClick={() => navigate(-1)} className="ml-auto inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800">
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-          上一頁
+    <div className="space-y-3">
+      {/* 上一頁：amber → hover 綠、按下縮放 */}
+      <div>
+        <button
+          onClick={goBack}
+          className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-amber-100 px-3 py-1.5 text-sm text-neutral-800 shadow-sm transition-all hover:bg-[#3C7269] hover:text-white active:scale-95"
+          aria-label="上一頁"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>上一頁</span>
         </button>
-      </nav>
+      </div>
 
-      <header className="mx-auto max-w-6xl px-4 py-4">
-        <h1 className="text-2xl font-semibold">{categoryLabel}</h1>
-        <p className="mt-1 text-sm text-neutral-500">共 {list.length} 件商品</p>
-      </header>
+      <h2 className="text-[20px] mb-1">{title}</h2>
 
-      <section className="mx-auto max-w-6xl px-4 pb-10">
-        {list.length === 0 ? (
-          <div className="rounded-2xl border bg-white p-8 text-center text-neutral-600">這個分類目前沒有商品。</div>
-        ) : (
-          <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {list.map((p) => (
-              <li key={p.id}><ProductCard p={p} /></li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* 排序區：外層做成圓角膠囊，hover 同步變綠；內層 select 文字跟著變色 */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-neutral-700">排序：</span>
+        <div className="group rounded-full border border-neutral-200 bg-amber-100 px-2 transition-colors hover:bg-[#3C7269]">
+          <select
+            value={sort}
+            onChange={e=>setSort(e.target.value)}
+            className="bg-transparent px-3 py-1.5 text-sm text-neutral-800 group-hover:text-white outline-none focus:ring-2 focus:ring-[#3C7269]/50 rounded-full"
+          >
+            <option value="new">最新</option>
+            <option value="price_desc">價格（高→低）</option>
+            <option value="price_asc">價格（低→高）</option>
+            <option value="name_asc">名稱（A→Z）</option>
+          </select>
+        </div>
+      </div>
+
+      {/* 商品清單 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+        {filtered.map(p=> <ProductCard key={p.id} p={p} onAdd={onAdd}/>) }
+      </div>
     </div>
-  );
+  )
 }
