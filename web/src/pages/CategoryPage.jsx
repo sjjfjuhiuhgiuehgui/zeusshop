@@ -87,32 +87,45 @@ export default function CategoryPage({ title, matcher }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
         {filtered.map(p => (
           <article key={p.id} className="group relative rounded-2xl border bg-white overflow-hidden">
-            {/* 整張卡片可點 → /product/:id（注意：一定要以 / 開頭） */}
-            <Link to={`/product/${p.id}`} className="absolute inset-0 z-[1]" aria-label={`查看 ${p.name}`} />
-            <div className="aspect-square">
+            {/* 圖片：用 Link 包起來 */}
+            <Link to={`/product/${p.id}`} className="block aspect-square">
               <img
                 src={normalizePublicPath(p.images?.[0])}
                 alt={p.name}
                 className="h-full w-full object-cover"
                 loading="lazy"
               />
-            </div>
+            </Link>
+
+            {/* 文字區：標題也可以包 Link */}
             <div className="p-4 space-y-1">
-              <div className="font-medium line-clamp-1">{p.name}</div>
+              <Link to={`/product/${p.id}`} className="font-medium line-clamp-1 hover:underline">
+                {p.name}
+              </Link>
               <div className="text-neutral-600">
                 {Number(p.price).toLocaleString('zh-TW', { style: 'currency', currency: 'TWD' })}
               </div>
             </div>
-            <div className="p-4 pt-0">
+
+            {/* 底部操作列：加入購物車 + 查看更多 */}
+            <div className="p-4 pt-0 flex items-center gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); onAdd(p) }}
+                onClick={(e) => { e.stopPropagation(); onAdd(p) }}
                 className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                type="button"
               >
-                <ShoppingCart className="w-4 h-4" />
                 加入購物車
               </button>
+
+              <Link
+                to={`/product/${p.id}`}
+                className="ml-auto inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+              >
+                查看更多
+              </Link>
             </div>
           </article>
+
         ))}
       </div>
     </div>
