@@ -3,19 +3,19 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, Truck, ShieldCheck, Star, ShoppingCart, Plus, Minus, Heart } from "lucide-react";
 
-// 直接使用前端寫死的商品清單
-// 依你的實際路徑調整（若你是 /data/rawProducts 再轉 products，請改成那個匯出）
+// 前端商品清單
 import { products } from "../data/products";
+// 讀分類中文標籤（用 key 對應）
+import { getCategoryLabel } from "../data/categories";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // 依路由 :id 在前端清單中查找（同時容許字串/數字）
+  // 依 :id 查找（支援數字或字串）
   const product = useMemo(() => {
     if (!id) return null;
-    const found = products.find((p) => Number(p.id) === Number(id) || String(p.slug) === String(id));
-    return found || null;
+    return products.find((p) => Number(p.id) === Number(id) || String(p.slug) === String(id)) || null;
   }, [id]);
 
   // 收藏狀態
@@ -34,7 +34,9 @@ export default function ProductDetail() {
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [qty, setQty] = useState(1);
-  const images = (product?.images?.length ? product.images : ["/img/placeholder.png"]).map(normalizePublicPath);
+
+  // 圖片：你的 products.js 已經用 BASE 組好絕對路徑，這裡直接使用即可
+  const images = (product?.images?.length ? product.images : ["/img/placeholder.png"]);
   const canMinus = qty > 1;
   const inStock = (product?.stock ?? 0) > 0;
 
@@ -85,15 +87,17 @@ export default function ProductDetail() {
 
   return (
     <PageShell>
-      {/* 麵包屑：首頁 > 類別 > 商品名；右側返回 */}
+      {/* 麵包屑：首頁 > 分類(用 key 指到對應分類頁) > 商品名 */}
       <nav className="mx-auto flex max-w-6xl items-center gap-2 px-4 pt-6 text-sm text-neutral-500">
         <Link to="/" className="hover:text-neutral-800">首頁</Link>
         <span>/</span>
         {product?.category ? (
-          <Link to={categoryPath(product.category)} className="hover:text-neutral-800">
-            {categoryLabel(product.category)}
+          <Link to={`/category/${product.category}`} className="hover:text-neutral-800">
+            {getCategoryLabel(product.category)}
           </Link>
-        ) : <span className="text-neutral-400">未分類</span>}
+        ) : (
+          <span className="text-neutral-400">未分類</span>
+        )}
         <span>/</span>
         <span className="truncate text-neutral-800">{product.name}</span>
 
@@ -195,21 +199,10 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          {/* 詳細資訊 */}
+          {/* 詳細資訊：同時支援 specs 是「物件」或「陣列」 */}
           <div className="mt-8 space-y-3">
             <Details title="商品規格">
-              {product.specs ? (
-                <ul className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-                  {Object.entries(product.specs).map(([k, v]) => (
-                    <li key={k} className="flex items-start justify-between gap-4 rounded-xl border bg-white p-3">
-                      <span className="text-neutral-500">{k}</span>
-                      <span className="font-medium">{String(v)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-neutral-500">無提供規格。</p>
-              )}
+              {renderSpecs(product.specs)}
             </Details>
             <Details title="出貨與退貨">
               <ul className="list-disc pl-5 text-sm text-neutral-700">
@@ -293,31 +286,36 @@ function Stars({ rating = 4.8 }) {
   );
 }
 
-// 讓 public 內圖片在任何路徑都能正確載入（避免 /product/3 下相對路徑壞掉）
-function normalizePublicPath(p) {
-  if (!p) return "/img/placeholder.png";
-  // 以 / 開頭，確保是從網站根目錄取檔
-  return p.startsWith("/") ? p : `/${p}`;
-}
+// 規格渲染：支援物件與陣列
+function renderSpecs(specs) {
+  if (!specs) return <p className="text-sm text-neutral-500">無提供規格。</p>;
 
-// ---- 類別顯示與路由映射 ----
-function categoryLabel(key) {
-  const map = {
-    "3c": "電腦／事務設備",
-    appliances: "家電",
-    baby: "母嬰",
-    beauty: "美妝",
-  };
-  return map[key] || key;
-}
-function categoryPath(key) {
-  const map = {
-    "3c": "/category/computers-office",
-    appliances: "/category/appliances",
-    baby: "/category/baby",
-    beauty: "/category/beauty",
-  };
-  return map[key] || "/";
+  // 物件：{ CPU: '...', RAM: '...' }
+  if (!Array.isArray(specs) && typeof specs === 'object') {
+    return (
+      <ul className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+        {Object.entries(specs).map(([k, v]) => (
+          <li key={k} className="flex items-start justify-between gap-4 rounded-xl border bg-white p-3">
+            <span className="text-neutral-500">{k}</span>
+            <span className="font-medium">{String(v)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  // 陣列：['CPU: Intel i5', 'RAM: 16GB', ...]
+  const items = Array.isArray(specs) ? specs : [String(specs)];
+  return (
+    <ul className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+      {items.map((line, i) => (
+        <li key={i} className="flex items-start justify-between gap-4 rounded-xl border bg-white p-3">
+          <span className="text-neutral-500">規格</span>
+          <span className="font-medium">{line}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function NotFoundProduct() {

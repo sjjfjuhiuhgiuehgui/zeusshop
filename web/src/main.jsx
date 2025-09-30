@@ -30,7 +30,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, Heart, ShoppingCart, Home as HomeIcon, Lock, ListChecks, LogOut } from 'lucide-react'
 
 // 分類設定
-import { CATEGORIES, makeMatcher } from './data/categories'
+import { CATEGORIES, matchByKey } from './data/categories'
 
 /* ---------------- Admin 驗證狀態 ---------------- */
 function useAdminAuthed() {
@@ -196,7 +196,7 @@ function App() {
               element={
                 <CategoryPage
                   title={cat.label}
-                  matcher={makeMatcher(cat.keywords)}
+                  matcher={matchByKey(cat.key)}   // ✅ 用分類 key 精準比對
                 />
               }
             />
