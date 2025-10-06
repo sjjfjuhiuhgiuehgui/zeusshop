@@ -1,13 +1,10 @@
-// web/src/pages/Checkout.jsx
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createOrder } from '../api'
 
-// 金額顯示
 const currency = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
 const nt = (n) => currency.format(Number(n) || 0)
 
-// 讀取並矯正購物車資料（統一欄位與型別）
 function loadCart() {
   const raw = JSON.parse(localStorage.getItem('cart') || '[]')
   const fixed = raw.map(it => {
@@ -33,11 +30,10 @@ export default function Checkout() {
     [cart]
   )
 
-  // 表單狀態
   const [form, setForm] = useState({
     buyerName: '',
     buyerPhone: '',
-    shippingMethod: 'pickup', // pickup | sevencv | home
+    shippingMethod: 'pickup',
     storeCode: '',
     address: '',
   })
@@ -51,11 +47,10 @@ export default function Checkout() {
     if (form.shippingMethod === 'sevencv' && !form.storeCode.trim()) { alert('請輸入 7-11 門市代碼/名稱'); return }
     if (form.shippingMethod === 'home' && !form.address.trim()) { alert('請輸入宅配地址'); return }
 
-    // 送單前再次強化型別與數值（後端要 quantity，不是 qty）
     const items = cart
       .map(it => ({
         productId: Number(it.productId),
-        quantity: Math.max(1, parseInt(it.quantity, 10) || 0),
+        quantity: Math.max(1, parseInt(it.quantity, 10) || 0), // ✅ 後端需要 quantity 欄位
         price: Number(it.price) || 0,
       }))
       .filter(it =>
@@ -65,17 +60,14 @@ export default function Checkout() {
       )
 
     if (items.length === 0) {
-      // 若資料仍不合法，清空購物車避免一直撞錯
       localStorage.removeItem('cart'); setCart([])
       alert('購物車資料異常，已重置，請重新加入商品')
       return
     }
 
     const payload = {
-      // ✅ 後端要的是 name / phone
-      name: form.buyerName.trim(),
-      phone: form.buyerPhone.trim(),
-
+      name: form.buyerName.trim(),     // ✅ 後端要 name
+      phone: form.buyerPhone.trim(),   // ✅ 後端要 phone
       shippingMethod: form.shippingMethod,
       storeCode: form.shippingMethod === 'sevencv' ? form.storeCode.trim() : '',
       address: form.shippingMethod === 'home' ? form.address.trim() : '',
@@ -83,14 +75,11 @@ export default function Checkout() {
       items,
     }
 
-    // 偵錯：可在瀏覽器 Network → Request Payload 檢查
     console.log('POST /api/orders payload =', payload)
 
     try {
       const res = await createOrder(payload)
       const state = { orderNo: res.orderNo || res.orderId, total: res.total ?? payload.amount }
-
-      // 成功：清空購物車並導向付款資訊頁
       sessionStorage.setItem('lastOrderInfo', JSON.stringify(state))
       localStorage.removeItem('cart'); setCart([])
       navigate(`/payment/${res.orderId || state.orderNo}`, { state })
