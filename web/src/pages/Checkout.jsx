@@ -66,8 +66,10 @@ export default function Checkout() {
     }
 
     const payload = {
-      name: form.buyerName.trim(),     // ✅ 後端要 name
-      phone: form.buyerPhone.trim(),   // ✅ 後端要 phone
+      // ✅ 改回 buyerName / buyerPhone
+      buyerName: form.buyerName.trim(),
+      buyerPhone: form.buyerPhone.trim(),
+
       shippingMethod: form.shippingMethod,
       storeCode: form.shippingMethod === 'sevencv' ? form.storeCode.trim() : '',
       address: form.shippingMethod === 'home' ? form.address.trim() : '',
