@@ -4,6 +4,7 @@ import { products } from '../data/products'
 import { ArrowLeft } from 'lucide-react'
 
 const currency = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
+const nt = (n) => currency.format(Number(n) || 0)
 
 export default function CategoryPage({ title, matcher }) {
   const navigate = useNavigate()
@@ -26,23 +27,24 @@ export default function CategoryPage({ title, matcher }) {
     return a
   }, [sort, matcher])
 
-  // ✅ 統一購物車格式：productId:number, quantity:number
+  // 購物車寫入統一格式
   const onAdd = (p) => {
     const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-    const idx = cart.findIndex(x => Number(x.productId) === Number(p.id))
+    const pid = Number(p.id)
+    const idx = cart.findIndex(x => Number(x.productId ?? x.id) === pid)
     if (idx >= 0) {
       const next = [...cart]
-      next[idx].quantity = Number(next[idx].quantity || 0) + 1
+      next[idx].quantity = Math.max(1, parseInt(next[idx].quantity, 10) || 0) + 1
       localStorage.setItem('cart', JSON.stringify(next))
     } else {
       localStorage.setItem('cart', JSON.stringify([
         ...cart,
         {
-          productId: Number(p.id),
+          productId: pid,
           name: p.name,
           price: Number(p.price) || 0,
+          quantity: 1,
           imageUrl: normalizePublicPath(p.images?.[0]),
-          quantity: 1
         }
       ]))
     }
@@ -96,8 +98,8 @@ export default function CategoryPage({ title, matcher }) {
               <Link to={`/product/${p.id}`} className="font-medium line-clamp-1 hover:underline">
                 {p.name}
               </Link>
-              <div className="text-neutral-600">
-                {currency.format(Number(p.price) || 0)}
+              <div className="text-neutral-800 font-medium">
+                {nt(p.price)}
               </div>
             </div>
 
@@ -118,7 +120,6 @@ export default function CategoryPage({ title, matcher }) {
               </Link>
             </div>
           </article>
-
         ))}
       </div>
     </div>
