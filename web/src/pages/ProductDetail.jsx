@@ -50,22 +50,28 @@ export default function ProductDetail() {
     if (!product) return;
     const key = "cart";
     const raw = localStorage.getItem(key);
-    /** @type {{id:string,name:string,price:number,qty:number,image?:string}[]} */
     const cart = raw ? JSON.parse(raw) : [];
-    const idx = cart.findIndex((c) => String(c.id) === String(product.id));
-    if (idx >= 0) cart[idx].qty += qty;
-    else {
+    const pid = Number(product.id)
+
+    // 🔁 統一以 productId:number 存、quantity:number 計數
+    const idx = cart.findIndex((c) => Number(c.productId) === pid);
+    if (idx >= 0) {
+      const next = [...cart];
+      next[idx].quantity = Number(next[idx].quantity || 0) + Number(qty || 1);
+      localStorage.setItem(key, JSON.stringify(next));
+    } else {
       cart.push({
-        id: String(product.id),
+        productId: pid,
         name: product.name,
-        price: product.price,
-        qty,
-        image: images[0],
+        price: Number(product.price) || 0,
+        quantity: Number(qty || 1),
+        imageUrl: images[0],
       });
+      localStorage.setItem(key, JSON.stringify(cart));
     }
-    localStorage.setItem(key, JSON.stringify(cart));
     navigate("/cart");
   }
+
 
   function toggleFavorite() {
     if (!product) return;

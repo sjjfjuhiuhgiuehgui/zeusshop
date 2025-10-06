@@ -1,17 +1,35 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
-function nt(n){ return (n/100).toFixed(0) } // 以「分」為單位轉整數元
+const currency = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
+const nt = (n) => currency.format(Number(n) || 0)
+
+// 將舊資料修正為統一格式：{ productId:number, name, price:number, quantity:number, imageUrl?:string }
+function loadCart() {
+  const raw = JSON.parse(localStorage.getItem('cart') || '[]')
+  const fixed = raw.map(x => ({
+    productId: Number(x.productId ?? x.id),
+    name: x.name || '',
+    price: Number(x.price) || 0,
+    quantity: Number(x.quantity ?? x.qty ?? 1) || 1,
+    imageUrl: x.imageUrl || x.image || ''
+  }))
+  localStorage.setItem('cart', JSON.stringify(fixed))
+  return fixed
+}
 
 export default function Cart(){
-  const [cart, setCart] = useState(()=>JSON.parse(localStorage.getItem('cart')||'[]'))
+  const [cart, setCart] = useState(loadCart)
 
   useEffect(()=>{ localStorage.setItem('cart', JSON.stringify(cart)) }, [cart])
 
-  const total = useMemo(()=>cart.reduce((s,x)=>s + x.price * x.quantity, 0), [cart])
+  const total = useMemo(
+    ()=>cart.reduce((s,x)=> s + Number(x.price||0) * Number(x.quantity||0), 0),
+    [cart]
+  )
 
-  const inc = (i)=>{ const n=[...cart]; n[i].quantity++; setCart(n) }
-  const dec = (i)=>{ const n=[...cart]; n[i].quantity=Math.max(1, n[i].quantity-1); setCart(n) }
+  const inc = (i)=>{ const n=[...cart]; n[i].quantity = Number(n[i].quantity||0) + 1; setCart(n) }
+  const dec = (i)=>{ const n=[...cart]; n[i].quantity = Math.max(1, Number(n[i].quantity||0) - 1); setCart(n) }
   const del = (i)=>{ const n=[...cart]; n.splice(i,1); setCart(n) }
   const clear = ()=>{ if(confirm('清空購物車？')) { localStorage.removeItem('cart'); setCart([]) } }
 
@@ -38,7 +56,6 @@ export default function Cart(){
                 <tr key={i} style={{borderBottom:'1px solid #f3f3f3'}}>
                   <td style={{padding:'8px'}}>
                     <div style={{display:'flex', alignItems:'center', gap:8}}>
-                      {/* 縮圖（若舊資料沒有 imageUrl 就不顯示） */}
                       {x.imageUrl ? (
                         <img
                           src={x.imageUrl}
@@ -49,13 +66,13 @@ export default function Cart(){
                       <div>{x.name}</div>
                     </div>
                   </td>
-                  <td align="center" style={{padding:'8px'}}>NT$ {nt(x.price)}</td>
+                  <td align="center" style={{padding:'8px'}}>{nt(x.price)}</td>
                   <td align="center" style={{padding:'8px'}}>
                     <button onClick={()=>dec(i)}>-</button>
                     <span style={{margin:'0 8px'}}>{x.quantity}</span>
                     <button onClick={()=>inc(i)}>+</button>
                   </td>
-                  <td align="center" style={{padding:'8px'}}>NT$ {nt(x.price * x.quantity)}</td>
+                  <td align="center" style={{padding:'8px'}}>{nt(Number(x.price)*Number(x.quantity))}</td>
                   <td align="center" style={{padding:'8px'}}>
                     <button onClick={()=>del(i)}>移除</button>
                   </td>
@@ -67,7 +84,7 @@ export default function Cart(){
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:12}}>
             <button onClick={clear}>清空購物車</button>
             <div style={{textAlign:'right'}}>
-              <div style={{marginBottom:8}}>總計：<strong>NT$ {nt(total)}</strong></div>
+              <div style={{marginBottom:8}}>總計：<strong>{nt(total)}</strong></div>
               <Link to="/checkout">前往結帳</Link>
             </div>
           </div>
