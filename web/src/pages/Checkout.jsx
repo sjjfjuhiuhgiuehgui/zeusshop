@@ -50,43 +50,46 @@ export default function Checkout() {
     if (form.shippingMethod === 'sevencv' && !form.storeCode.trim()) { alert('請輸入 7-11 門市代碼/名稱'); return }
     if (form.shippingMethod === 'home' && !form.address.trim()) { alert('請輸入宅配地址'); return }
 
-    // 送單前再次強化型別與數值
+    // ✅ quantity（不是 qty），正整數且最小 1
     const items = cart
       .map(it => ({
         productId: Number(it.productId),
-        qty: Math.max(1, parseInt(it.quantity, 10) || 0),
+        quantity: Math.max(1, parseInt(it.quantity, 10) || 0),
         price: Number(it.price) || 0,
       }))
-      .filter(it => Number.isFinite(it.productId) && it.productId > 0 && Number.isInteger(it.qty) && it.qty > 0)
+      .filter(it =>
+        Number.isFinite(it.productId) && it.productId > 0 &&
+        Number.isInteger(it.quantity) && it.quantity > 0 &&
+        Number.isFinite(it.price) && it.price >= 0
+      )
 
     if (items.length === 0) {
-      // 若資料仍不合法，清空購物車避免一直撞錯
       localStorage.removeItem('cart'); setCart([])
       alert('購物車資料異常，已重置，請重新加入商品')
       return
     }
 
+    const payload = {
+      buyerName: form.buyerName.trim(),
+      buyerPhone: form.buyerPhone.trim(),
+      shippingMethod: form.shippingMethod,
+      storeCode: form.shippingMethod === 'sevencv' ? form.storeCode.trim() : '',
+      address: form.shippingMethod === 'home' ? form.address.trim() : '',
+      amount: items.reduce((s, x) => s + x.price * x.quantity, 0), // 可有助於後端驗證
+      items,
+    }
+
+    // 🔎 一次性除錯（看實際送出的 JSON）
+    console.log('POST /api/orders payload =', payload)
+
     try {
-      const payload = {
-        buyerName: form.buyerName.trim(),
-        buyerPhone: form.buyerPhone.trim(),
-        shippingMethod: form.shippingMethod,
-        storeCode: form.shippingMethod === 'sevencv' ? form.storeCode.trim() : '',
-        address: form.shippingMethod === 'home' ? form.address.trim() : '',
-        items,
-      }
-
       const res = await createOrder(payload)
-      const state = { orderNo: res.orderNo || res.orderId, total: res.total ?? total }
-
-      // 成功：清空購物車並導向付款資訊頁
+      const state = { orderNo: res.orderNo || res.orderId, total: res.total ?? payload.amount }
       sessionStorage.setItem('lastOrderInfo', JSON.stringify(state))
       localStorage.removeItem('cart'); setCart([])
       navigate(`/payment/${res.orderId || state.orderNo}`, { state })
     } catch (e) {
-      // 後端常見訊息：invalid quantity / type mismatch 等
-      const msg = e?.response?.data?.error || e?.message || '下單失敗'
-      alert(msg)
+      alert(e?.response?.data?.error || e.message || '下單失敗')
     }
   }
 
