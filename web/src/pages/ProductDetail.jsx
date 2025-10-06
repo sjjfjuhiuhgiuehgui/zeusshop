@@ -1,24 +1,20 @@
-// web/src/pages/ProductDetail.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, Truck, ShieldCheck, Star, ShoppingCart, Plus, Minus, Heart } from "lucide-react";
-
-// 前端商品清單
 import { products } from "../data/products";
-// 讀分類中文標籤（用 key 對應）
 import { getCategoryLabel } from "../data/categories";
+
+const currency = new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD" });
 
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // 依 :id 查找（支援數字或字串）
   const product = useMemo(() => {
     if (!id) return null;
     return products.find((p) => Number(p.id) === Number(id) || String(p.slug) === String(id)) || null;
   }, [id]);
 
-  // 收藏狀態
   const [isFav, setIsFav] = useState(false);
   useEffect(() => {
     if (!product) return;
@@ -35,15 +31,14 @@ export default function ProductDetail() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [qty, setQty] = useState(1);
 
-  // 圖片：你的 products.js 已經用 BASE 組好絕對路徑，這裡直接使用即可
   const images = (product?.images?.length ? product.images : ["/img/placeholder.png"]);
   const canMinus = qty > 1;
-  const inStock = (product?.stock ?? 0) > 0;
+  const inStock = (product?.stock ?? 10) > 0;
 
   const priceText = useMemo(() => {
     if (!product) return "";
     const val = typeof product.price === "number" ? product.price : Number(product.price || 0);
-    return new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD" }).format(val);
+    return currency.format(val);
   }, [product]);
 
   function addToCart() {
@@ -51,27 +46,26 @@ export default function ProductDetail() {
     const key = "cart";
     const raw = localStorage.getItem(key);
     const cart = raw ? JSON.parse(raw) : [];
-    const pid = Number(product.id)
+    const pid = Number(product.id);
+    const addQty = Math.max(1, parseInt(qty, 10) || 1);
 
-    // 🔁 統一以 productId:number 存、quantity:number 計數
-    const idx = cart.findIndex((c) => Number(c.productId) === pid);
+    const idx = cart.findIndex((c) => Number(c.productId ?? c.id) === pid);
     if (idx >= 0) {
       const next = [...cart];
-      next[idx].quantity = Number(next[idx].quantity || 0) + Number(qty || 1);
+      next[idx].quantity = Math.max(1, parseInt(next[idx].quantity, 10) || 0) + addQty;
       localStorage.setItem(key, JSON.stringify(next));
     } else {
       cart.push({
         productId: pid,
         name: product.name,
         price: Number(product.price) || 0,
-        quantity: Number(qty || 1),
-        imageUrl: images[0],
+        quantity: addQty,
+        imageUrl: images[0] || "",
       });
       localStorage.setItem(key, JSON.stringify(cart));
     }
     navigate("/cart");
   }
-
 
   function toggleFavorite() {
     if (!product) return;
@@ -93,7 +87,7 @@ export default function ProductDetail() {
 
   return (
     <PageShell>
-      {/* 麵包屑：首頁 > 分類(用 key 指到對應分類頁) > 商品名 */}
+      {/* 麵包屑：首頁 > 分類(key對應) > 商品名 */}
       <nav className="mx-auto flex max-w-6xl items-center gap-2 px-4 pt-6 text-sm text-neutral-500">
         <Link to="/" className="hover:text-neutral-800">首頁</Link>
         <span>/</span>
@@ -116,7 +110,7 @@ export default function ProductDetail() {
       </nav>
 
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 py-6 md:grid-cols-2">
-        {/* LEFT: 圖片區 */}
+        {/* LEFT */}
         <section>
           <div className="aspect-square overflow-hidden rounded-2xl border bg-white">
             <img
@@ -131,9 +125,7 @@ export default function ProductDetail() {
               <button
                 key={i}
                 onClick={() => setActiveIdx(i)}
-                className={`aspect-square overflow-hidden rounded-xl border bg-white ${
-                  i === activeIdx ? "ring-2 ring-neutral-800" : "hover:opacity-90"
-                }`}
+                className={`aspect-square overflow-hidden rounded-xl border bg-white ${i === activeIdx ? "ring-2 ring-neutral-800" : "hover:opacity-90"}`}
                 aria-label={`預覽第 ${i + 1} 張`}
               >
                 <img src={src} alt="縮圖" className="h-full w-full object-cover" />
@@ -142,7 +134,7 @@ export default function ProductDetail() {
           </div>
         </section>
 
-        {/* RIGHT: 內容區 */}
+        {/* RIGHT */}
         <section className="flex flex-col">
           <h1 className="text-2xl font-semibold md:text-3xl">{product.name}</h1>
 
@@ -150,14 +142,13 @@ export default function ProductDetail() {
             <Stars rating={product.rating ?? 4.8} />
             <span className="text-neutral-500">({product.reviewCount ?? 0})</span>
             <span className={`rounded-full px-2 py-0.5 text-xs ${inStock ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-500"}`}>
-              {inStock ? `現貨 ${product.stock} 件` : "補貨中"}
+              {inStock ? `現貨 ${product.stock ?? 10} 件` : "補貨中"}
             </span>
           </div>
 
           <div className="mt-4 text-3xl font-bold tracking-tight">{priceText}</div>
           <p className="mt-3 text-neutral-600">{product.description}</p>
 
-          {/* 服務徽章 */}
           <ul className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
             <li className="flex items-center gap-2 rounded-xl border bg-white p-3">
               <Truck className="h-4 w-4" /> {product.shipping || "多種配送"}
@@ -165,22 +156,17 @@ export default function ProductDetail() {
             <li className="flex items-center gap-2 rounded-xl border bg-white p-3">
               <ShieldCheck className="h-4 w-4" /> {product.warranty || "保固 / 七天鑑賞"}
             </li>
-            <li
-              onClick={toggleFavorite}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border bg-white p-3 hover:bg-neutral-50"
-              title={isFav ? "點擊取消收藏" : "點擊加入收藏"}
-            >
+            <li onClick={toggleFavorite} className="flex cursor-pointer items-center gap-2 rounded-xl border bg-white p-3 hover:bg-neutral-50">
               <Heart className={`h-4 w-4 ${isFav ? "text-red-500 fill-red-500" : ""}`} />
               {isFav ? "已收藏" : "加入收藏"}
             </li>
           </ul>
 
-          {/* 數量 + CTA */}
           <div className="mt-6 flex items-center gap-3">
             <div className="flex items-center rounded-2xl border bg-white p-1">
               <button
                 className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${canMinus ? "hover:bg-neutral-50" : "opacity-40"}`}
-                onClick={() => canMinus && setQty((n) => Math.max(1, n - 1))}
+                onClick={() => canMinus && setQty((n) => Math.max(1, (parseInt(n, 10) || 1) - 1))}
                 aria-label="減少數量"
               >
                 <Minus className="h-4 w-4" />
@@ -188,7 +174,7 @@ export default function ProductDetail() {
               <div className="min-w-[3rem] text-center text-lg font-medium">{qty}</div>
               <button
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-neutral-50"
-                onClick={() => setQty((n) => n + 1)}
+                onClick={() => setQty((n) => (parseInt(n, 10) || 1) + 1)}
                 aria-label="增加數量"
               >
                 <Plus className="h-4 w-4" />
@@ -205,7 +191,6 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          {/* 詳細資訊：同時支援 specs 是「物件」或「陣列」 */}
           <div className="mt-8 space-y-3">
             <Details title="商品規格">
               {renderSpecs(product.specs)}
@@ -220,42 +205,9 @@ export default function ProductDetail() {
           </div>
         </section>
       </div>
-
-      {/* 手機底部固定 CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-white/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-white/70 md:hidden">
-        <div className="mx-auto flex max-w-6xl items-center gap-3">
-          <div className="flex items-center rounded-2xl border bg-white p-1">
-            <button
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${canMinus ? "hover:bg-neutral-50" : "opacity-40"}`}
-              onClick={() => canMinus && setQty((n) => Math.max(1, n - 1))}
-              aria-label="減少數量"
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-            <div className="min-w-[3rem] text-center text-lg font-medium">{qty}</div>
-            <button
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-neutral-50"
-              onClick={() => setQty((n) => n + 1)}
-              aria-label="增加數量"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-          <button
-            disabled={!inStock}
-            onClick={addToCart}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-5 py-3 text-white shadow hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <ShoppingCart className="h-5 w-5" />
-            {inStock ? `加入購物車｜${priceText}` : "補貨通知"}
-          </button>
-        </div>
-      </div>
     </PageShell>
   );
 }
-
-/* ---------- 小工具 & 子元件 ---------- */
 
 function PageShell({ children }) {
   return <div className="min-h-[100dvh] bg-neutral-50 pb-20 md:pb-0">{children}</div>;
@@ -292,11 +244,8 @@ function Stars({ rating = 4.8 }) {
   );
 }
 
-// 規格渲染：支援物件與陣列
 function renderSpecs(specs) {
   if (!specs) return <p className="text-sm text-neutral-500">無提供規格。</p>;
-
-  // 物件：{ CPU: '...', RAM: '...' }
   if (!Array.isArray(specs) && typeof specs === 'object') {
     return (
       <ul className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
@@ -309,8 +258,6 @@ function renderSpecs(specs) {
       </ul>
     );
   }
-
-  // 陣列：['CPU: Intel i5', 'RAM: 16GB', ...]
   const items = Array.isArray(specs) ? specs : [String(specs)];
   return (
     <ul className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
