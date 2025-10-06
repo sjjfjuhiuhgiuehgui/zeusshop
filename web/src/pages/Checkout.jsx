@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createOrder } from '../api'
 
-// TWD 顯示工具
+// 金額顯示
 const currency = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
 const nt = (n) => currency.format(Number(n) || 0)
 
@@ -33,6 +33,7 @@ export default function Checkout() {
     [cart]
   )
 
+  // 表單狀態
   const [form, setForm] = useState({
     buyerName: '',
     buyerPhone: '',
@@ -50,7 +51,7 @@ export default function Checkout() {
     if (form.shippingMethod === 'sevencv' && !form.storeCode.trim()) { alert('請輸入 7-11 門市代碼/名稱'); return }
     if (form.shippingMethod === 'home' && !form.address.trim()) { alert('請輸入宅配地址'); return }
 
-    // ✅ quantity（不是 qty），正整數且最小 1
+    // 送單前再次強化型別與數值（後端要 quantity，不是 qty）
     const items = cart
       .map(it => ({
         productId: Number(it.productId),
@@ -64,32 +65,38 @@ export default function Checkout() {
       )
 
     if (items.length === 0) {
+      // 若資料仍不合法，清空購物車避免一直撞錯
       localStorage.removeItem('cart'); setCart([])
       alert('購物車資料異常，已重置，請重新加入商品')
       return
     }
 
     const payload = {
-      buyerName: form.buyerName.trim(),
-      buyerPhone: form.buyerPhone.trim(),
+      // ✅ 後端要的是 name / phone
+      name: form.buyerName.trim(),
+      phone: form.buyerPhone.trim(),
+
       shippingMethod: form.shippingMethod,
       storeCode: form.shippingMethod === 'sevencv' ? form.storeCode.trim() : '',
       address: form.shippingMethod === 'home' ? form.address.trim() : '',
-      amount: items.reduce((s, x) => s + x.price * x.quantity, 0), // 可有助於後端驗證
+      amount: items.reduce((s, x) => s + x.price * x.quantity, 0),
       items,
     }
 
-    // 🔎 一次性除錯（看實際送出的 JSON）
+    // 偵錯：可在瀏覽器 Network → Request Payload 檢查
     console.log('POST /api/orders payload =', payload)
 
     try {
       const res = await createOrder(payload)
       const state = { orderNo: res.orderNo || res.orderId, total: res.total ?? payload.amount }
+
+      // 成功：清空購物車並導向付款資訊頁
       sessionStorage.setItem('lastOrderInfo', JSON.stringify(state))
       localStorage.removeItem('cart'); setCart([])
       navigate(`/payment/${res.orderId || state.orderNo}`, { state })
     } catch (e) {
-      alert(e?.response?.data?.error || e.message || '下單失敗')
+      const msg = e?.response?.data?.error || e?.message || '下單失敗'
+      alert(msg)
     }
   }
 
