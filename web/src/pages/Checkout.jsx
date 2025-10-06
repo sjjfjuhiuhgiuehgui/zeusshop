@@ -1,35 +1,70 @@
+// web/src/pages/Checkout.jsx
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createOrder } from '../api'
 
+// TWD 顯示工具
 const currency = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
+const nt = (n) => currency.format(Number(n) || 0)
+
+// 讀取並矯正購物車資料（統一欄位與型別）
+function loadCart() {
+  const raw = JSON.parse(localStorage.getItem('cart') || '[]')
+  const fixed = raw.map(it => {
+    const pid = Number(it.productId ?? it.id)
+    const price = Number(it.price) || 0
+    const quantity = Math.max(1, parseInt(it.quantity ?? it.qty ?? 1, 10) || 1)
+    return {
+      productId: pid,
+      price,
+      quantity,
+      name: String(it.name || ''),
+      imageUrl: it.imageUrl || it.image || '',
+    }
+  })
+  localStorage.setItem('cart', JSON.stringify(fixed))
+  return fixed
+}
 
 export default function Checkout() {
-  const [cart, setCart] = useState(() => {
-    const raw = JSON.parse(localStorage.getItem('cart') || '[]')
-    // 🔧 在載入時矯正所有數字欄位型別
-    const fixed = raw.map(it => ({
-      productId: Number(it.productId ?? it.id),
-      price: Number(it.price) || 0,
-      quantity: Number(it.quantity ?? it.qty ?? 1),
-      name: it.name,
-      imageUrl: it.imageUrl || it.image || ''
-    }))
-    localStorage.setItem('cart', JSON.stringify(fixed))
-    return fixed
-  })
+  const [cart, setCart] = useState(loadCart)
+  const total = useMemo(
+    () => cart.reduce((s, x) => s + Number(x.price) * Number(x.quantity), 0),
+    [cart]
+  )
 
-  const total = useMemo(() => cart.reduce((s, x) => s + Number(x.price) * Number(x.quantity), 0), [cart])
-  const [form, setForm] = useState({ buyerName: '', buyerPhone: '', shippingMethod: 'pickup', storeCode: '', address: '' })
+  const [form, setForm] = useState({
+    buyerName: '',
+    buyerPhone: '',
+    shippingMethod: 'pickup', // pickup | sevencv | home
+    storeCode: '',
+    address: '',
+  })
   const onChange = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
   const navigate = useNavigate()
 
-  const submit = async () => {
+  async function submit() {
     if (cart.length === 0) { alert('購物車為空'); return }
     if (!form.buyerName.trim()) { alert('請輸入姓名'); return }
     if (!/^09\d{8}$/.test(form.buyerPhone)) { alert('請輸入正確手機號碼（09 開頭，共 10 碼）'); return }
     if (form.shippingMethod === 'sevencv' && !form.storeCode.trim()) { alert('請輸入 7-11 門市代碼/名稱'); return }
     if (form.shippingMethod === 'home' && !form.address.trim()) { alert('請輸入宅配地址'); return }
+
+    // 送單前再次強化型別與數值
+    const items = cart
+      .map(it => ({
+        productId: Number(it.productId),
+        qty: Math.max(1, parseInt(it.quantity, 10) || 0),
+        price: Number(it.price) || 0,
+      }))
+      .filter(it => Number.isFinite(it.productId) && it.productId > 0 && Number.isInteger(it.qty) && it.qty > 0)
+
+    if (items.length === 0) {
+      // 若資料仍不合法，清空購物車避免一直撞錯
+      localStorage.removeItem('cart'); setCart([])
+      alert('購物車資料異常，已重置，請重新加入商品')
+      return
+    }
 
     try {
       const payload = {
@@ -38,37 +73,57 @@ export default function Checkout() {
         shippingMethod: form.shippingMethod,
         storeCode: form.shippingMethod === 'sevencv' ? form.storeCode.trim() : '',
         address: form.shippingMethod === 'home' ? form.address.trim() : '',
-        items: cart.map(it => ({
-          productId: Number(it.productId),  // ✅ 確保是數字
-          qty: Number(it.quantity),
-          price: Number(it.price)
-        }))
+        items,
       }
 
       const res = await createOrder(payload)
-      const state = { orderNo: res.orderNo || res.orderId, total: res.total }
+      const state = { orderNo: res.orderNo || res.orderId, total: res.total ?? total }
+
+      // 成功：清空購物車並導向付款資訊頁
       sessionStorage.setItem('lastOrderInfo', JSON.stringify(state))
       localStorage.removeItem('cart'); setCart([])
-      navigate(`/payment/${res.orderId}`, { state })
+      navigate(`/payment/${res.orderId || state.orderNo}`, { state })
     } catch (e) {
-      alert(e.response?.data?.error || e.message)
+      // 後端常見訊息：invalid quantity / type mismatch 等
+      const msg = e?.response?.data?.error || e?.message || '下單失敗'
+      alert(msg)
     }
   }
 
   return (
-    <div>
-      <h2>結帳</h2>
-      <div style={{ display: 'grid', gap: 12, maxWidth: 520 }}>
-        <label>姓名
-          <input value={form.buyerName} onChange={e => onChange('buyerName', e.target.value)} placeholder="請輸入訂購人姓名" />
+    <div style={{ maxWidth: 560 }}>
+      <h2 className="text-xl font-semibold mb-3">結帳</h2>
+
+      <div className="grid gap-3">
+        <label className="flex flex-col gap-1">
+          <span>姓名</span>
+          <input
+            value={form.buyerName}
+            onChange={e => onChange('buyerName', e.target.value)}
+            placeholder="請輸入訂購人姓名"
+            className="border rounded px-3 py-2"
+          />
         </label>
 
-        <label>電話
-          <input value={form.buyerPhone} onChange={e => onChange('buyerPhone', e.target.value)} placeholder="09xxxxxxxx" inputMode="numeric" maxLength={10} />
+        <label className="flex flex-col gap-1">
+          <span>電話</span>
+          <input
+            value={form.buyerPhone}
+            onChange={e => onChange('buyerPhone', e.target.value)}
+            placeholder="09xxxxxxxx"
+            inputMode="numeric"
+            maxLength={10}
+            className="border rounded px-3 py-2"
+          />
         </label>
 
-        <label>寄送方式
-          <select value={form.shippingMethod} onChange={e => onChange('shippingMethod', e.target.value)}>
+        <label className="flex flex-col gap-1">
+          <span>寄送方式</span>
+          <select
+            value={form.shippingMethod}
+            onChange={e => onChange('shippingMethod', e.target.value)}
+            className="border rounded px-3 py-2"
+          >
             <option value="pickup">自取</option>
             <option value="sevencv">7-11 賣貨便</option>
             <option value="home">宅配</option>
@@ -76,20 +131,38 @@ export default function Checkout() {
         </label>
 
         {form.shippingMethod === 'sevencv' && (
-          <label>門市代碼/名稱
-            <input value={form.storeCode} onChange={e => onChange('storeCode', e.target.value)} placeholder="例如：7-11_123456 或 OO門市" />
+          <label className="flex flex-col gap-1">
+            <span>門市代碼 / 名稱</span>
+            <input
+              value={form.storeCode}
+              onChange={e => onChange('storeCode', e.target.value)}
+              placeholder="例如：7-11_123456 或 OO門市"
+              className="border rounded px-3 py-2"
+            />
           </label>
         )}
 
         {form.shippingMethod === 'home' && (
-          <label>地址
-            <input value={form.address} onChange={e => onChange('address', e.target.value)} placeholder="請輸入收件地址" />
+          <label className="flex flex-col gap-1">
+            <span>地址</span>
+            <input
+              value={form.address}
+              onChange={e => onChange('address', e.target.value)}
+              placeholder="請輸入收件地址"
+              className="border rounded px-3 py-2"
+            />
           </label>
         )}
 
-        {/* ✅ 改成 TWD formatter，不再除以 100 */}
-        <p>應付：<strong>{currency.format(total)}</strong></p>
-        <button onClick={submit} disabled={cart.length === 0}>送出訂單</button>
+        <p className="mt-2 text-lg">應付：<strong>{nt(total)}</strong></p>
+
+        <button
+          onClick={submit}
+          disabled={cart.length === 0}
+          className="mt-2 inline-flex items-center justify-center rounded-xl bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
+        >
+          送出訂單
+        </button>
       </div>
     </div>
   )
