@@ -1,3 +1,4 @@
+// web/src/pages/Checkout.jsx
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createOrder } from '../api'
@@ -5,17 +6,18 @@ import { createOrder } from '../api'
 const currency = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
 const nt = (n) => currency.format(Number(n) || 0)
 
+// 讀取並矯正購物車資料（統一欄位與型別）
 function loadCart() {
   const raw = JSON.parse(localStorage.getItem('cart') || '[]')
   const fixed = raw.map(it => {
     const pid = Number(it.productId ?? it.id)
-    const price = Number(it.price) || 0
+    const price = Number(it.price) || 0              // 元
     const quantity = Math.max(1, parseInt(it.quantity ?? it.qty ?? 1, 10) || 1)
     return {
       productId: pid,
-      price,
-      quantity,
-      name: String(it.name || ''),
+      name: String(it.name || ''),                   // ✅ 後端要求的 name
+      price,                                         // 元（顯示用）
+      quantity,                                      // ✅ 正整數
       imageUrl: it.imageUrl || it.image || '',
     }
   })
@@ -33,7 +35,7 @@ export default function Checkout() {
   const [form, setForm] = useState({
     buyerName: '',
     buyerPhone: '',
-    shippingMethod: 'pickup',
+    shippingMethod: 'pickup', // pickup | sevencv | home
     storeCode: '',
     address: '',
   })
@@ -47,16 +49,18 @@ export default function Checkout() {
     if (form.shippingMethod === 'sevencv' && !form.storeCode.trim()) { alert('請輸入 7-11 門市代碼/名稱'); return }
     if (form.shippingMethod === 'home' && !form.address.trim()) { alert('請輸入宅配地址'); return }
 
+    // 依後端結構組 items：name / unitPrice(分) / quantity / productId
     const items = cart
       .map(it => ({
-        productId: Number(it.productId),
-        quantity: Math.max(1, parseInt(it.quantity, 10) || 0), // ✅ 後端需要 quantity 欄位
-        price: Number(it.price) || 0,
+        productId: Number(it.productId) || 0,
+        name: String(it.name || ''),                                      // ✅ required
+        unitPrice: Math.round((Number(it.price) || 0) * 100),             // ✅ 元 → 分
+        quantity: Math.max(1, parseInt(it.quantity, 10) || 0),            // ✅ required
       }))
       .filter(it =>
-        Number.isFinite(it.productId) && it.productId > 0 &&
-        Number.isInteger(it.quantity) && it.quantity > 0 &&
-        Number.isFinite(it.price) && it.price >= 0
+        it.name &&
+        Number.isFinite(it.unitPrice) && it.unitPrice >= 0 &&
+        Number.isInteger(it.quantity) && it.quantity > 0
       )
 
     if (items.length === 0) {
@@ -66,22 +70,22 @@ export default function Checkout() {
     }
 
     const payload = {
-      // ✅ 改回 buyerName / buyerPhone
-      buyerName: form.buyerName.trim(),
-      buyerPhone: form.buyerPhone.trim(),
-
-      shippingMethod: form.shippingMethod,
+      buyerName: form.buyerName.trim(),        // ✅ 後端要 buyerName
+      buyerPhone: form.buyerPhone.trim(),      // ✅ 後端要 buyerPhone
+      shippingMethod: form.shippingMethod,     // pickup | sevencv | home
       storeCode: form.shippingMethod === 'sevencv' ? form.storeCode.trim() : '',
       address: form.shippingMethod === 'home' ? form.address.trim() : '',
-      amount: items.reduce((s, x) => s + x.price * x.quantity, 0),
-      items,
+      items,                                   // ✅ 後端要求的陣列
     }
 
     console.log('POST /api/orders payload =', payload)
 
     try {
       const res = await createOrder(payload)
-      const state = { orderNo: res.orderNo || res.orderId, total: res.total ?? payload.amount }
+      const state = {
+        orderNo: res.orderNo || res.orderId,
+        total: res.total ?? items.reduce((s, x) => s + x.unitPrice * x.quantity, 0) / 100
+      }
       sessionStorage.setItem('lastOrderInfo', JSON.stringify(state))
       localStorage.removeItem('cart'); setCart([])
       navigate(`/payment/${res.orderId || state.orderNo}`, { state })
