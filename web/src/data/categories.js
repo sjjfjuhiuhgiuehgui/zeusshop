@@ -1,7 +1,8 @@
 // web/src/data/categories.js
 import {
   BedDouble, Utensils, Lamp, Shirt, BookOpen, Hammer,
-  WashingMachine, Microscope, Monitor, RadioTower, Car
+  WashingMachine, Microscope, Monitor, RadioTower, Car,
+  Sparkles, // ✅ 必須在這裡正確引入美妝圖示
 } from 'lucide-react'
 
 // ✅ 新：用「分類 key」精準比對（建議在大量商品時使用）
@@ -13,7 +14,7 @@ export const matchByKeywords = (keywords) => (p) => {
   return Array.isArray(keywords) && keywords.some(k => text.includes(String(k).toLowerCase()))
 }
 
-// 分類清單（key = 路由 slug）
+// ✅ 分類清單（key = 路由 slug）
 export const CATEGORIES = [
   { key: 'furniture-bedding', label: '家具／寢具', Icon: BedDouble, keywords: ['家具','寢具','床','床墊','枕','棉被','衣櫃','書桌','餐桌','椅','沙發','床包'] },
   { key: 'kitchen', label: '廚房器具', Icon: Utensils, keywords: ['廚房','鍋','鍋具','平底鍋','湯鍋','餐具','刀','砧板','保鮮盒','杯','碗','烘焙','料理'] },
@@ -26,6 +27,9 @@ export const CATEGORIES = [
   { key: 'computers-office', label: '電腦／事務設備', Icon: Monitor, keywords: ['電腦','主機','筆電','螢幕','顯卡','滑鼠','鍵盤','印表機','事務機','掃描','NAS','路由器'] },
   { key: 'telecom', label: '電信器材', Icon: RadioTower, keywords: ['電信','通訊','手機','基地台','路由','交換器','天線','對講','光纖','SIM','網通'] },
   { key: 'automotive', label: '汽車用品', Icon: Car, keywords: ['汽車','機車','車用','機油','雨刷','胎壓','腳踏墊','行車紀錄器','車燈','保養','清潔'] },
+
+  // ✅ 新增的「美妝」分類
+  { key: 'beauty', label: '美妝', Icon: Sparkles, keywords: ['美妝','彩妝','保養','乳液','面膜','口紅','粉底','香水','化妝水','防曬','卸妝'] },
 ]
 
 // 小工具：從 key 取中文標籤（做麵包屑會用得到）
