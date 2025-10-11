@@ -1,8 +1,7 @@
-// web/src/pages/ProductDetail.jsx
+// web/src/pages/ProductDetail.jsx（最小替換：改抓 API）
 import React, { useMemo, useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, Truck, ShieldCheck, Star, ShoppingCart, Plus, Minus, Heart } from "lucide-react";
-import { products } from "../data/products";
 import { getCategoryLabel } from "../data/categories";
 
 const currency = new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD" });
@@ -11,49 +10,28 @@ export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const product = useMemo(() => {
-    if (!id) return null;
-    return products.find((p) => Number(p.id) === Number(id) || String(p.slug) === String(id)) || null;
+  const [product, setProduct] = useState(null);
+  const [images, setImages] = useState([]);
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const res = await fetch(`/api/products/${id}`);
+      if (!res.ok) { setProduct(null); return; }
+      const data = await res.json();
+      setProduct(data || null);
+      const imgs = Array.isArray(data?.images) ? data.images.map(it => it.url) : [];
+      setImages(imgs.length ? imgs : (data?.imageUrl ? [data.imageUrl] : []));
+    })();
   }, [id]);
 
-  const hasVariants = Array.isArray(product?.variants) && product.variants.length > 0;
-
-  // 初始選取容量
-  const [variantKey, setVariantKey] = useState(product?.defaultVariantKey || product?.variants?.[0]?.key);
-  useEffect(() => {
-    // 當切換到另一個商品時，重設選取容量
-    setVariantKey(product?.defaultVariantKey || product?.variants?.[0]?.key);
-  }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const selectedVariant = useMemo(() => {
-    if (!hasVariants) return null;
-    return product.variants.find(v => v.key === variantKey) || product.variants[0];
-  }, [hasVariants, product, variantKey]);
-
-  // ---------------- 變體圖片畫廊 + 容量切換對應圖片 ----------------
-  // 變體商品：畫廊 = 全部變體圖片（依 variants 順序、去重）
-  // 一般商品：畫廊 = product.images
-  const variantImages = hasVariants ? (product?.variants || []).map(v => v.image).filter(Boolean) : [];
-  const gallery = hasVariants
-    ? Array.from(new Set(variantImages))
-    : (product?.images || []);
+  // 這個專案先不做變體（variants），直接顯示產品的價格與圖片
+  const hasVariants = false;
   const [activeIdx, setActiveIdx] = useState(0);
-
-  // 當容量改變，將大圖切到該容量對應的圖片
-  useEffect(() => {
-    if (!hasVariants) return;
-    const v = product.variants.find(x => x.key === variantKey) || product.variants[0];
-    const idx = gallery.findIndex(u => u === v?.image);
-    setActiveIdx(idx >= 0 ? idx : 0);
-  }, [variantKey, hasVariants, product, gallery]);
-
+  const gallery = images.length ? images : ["/images/no-image.png"];
   const displayImage = gallery[activeIdx] || "/images/no-image.png";
+  const priceNumber = Number(product?.price || 0);
+  const priceText = currency.format(priceNumber);
 
-  // 價格顯示：有變體用變體價，否則用商品價
-  const displayPriceNumber = hasVariants ? (selectedVariant?.price ?? 0) : (Number(product?.price) || 0);
-  const priceText = currency.format(displayPriceNumber);
-
-  // 收藏
   const [isFav, setIsFav] = useState(false);
   useEffect(() => {
     if (!product) return;
@@ -67,16 +45,18 @@ export default function ProductDetail() {
 
   const [qty, setQty] = useState(1);
   const canMinus = qty > 1;
-  const inStock = (product?.stock ?? 10) > 0;
+  const inStock = (product?.stock ?? 0) > 0;
 
-  // 合併規格：變體優先，沒有就用商品共通
-  const mergedSpecs = useMemo(() => {
-    const base = Array.isArray(product?.specs) ? product.specs : [];
-    const v = Array.isArray(selectedVariant?.specs) ? selectedVariant.specs : [];
-    const keys = (s) => String(s).split("：")[0];
-    const baseFiltered = base.filter(bs => !v.some(vs => keys(vs) === keys(bs)));
-    return [...v, ...baseFiltered];
-  }, [product, selectedVariant]);
+  // 規格：後端是 JSON 字串，這裡嘗試 parse；失敗就當成單行字串顯示
+  const parsedSpecs = useMemo(() => {
+    if (!product?.spec) return [];
+    try {
+      const v = JSON.parse(product.spec);
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'object') return Object.entries(v).map(([k,val]) => `${k}：${val}`);
+      return [String(v)];
+    } catch { return [String(product.spec)]; }
+  }, [product]);
 
   function addToCart() {
     if (!product) return;
@@ -86,12 +66,7 @@ export default function ProductDetail() {
     const pid = Number(product.id);
     const addQty = Math.max(1, parseInt(qty, 10) || 1);
 
-    // 同商品+同變體才視為同一項
-    const idx = cart.findIndex((c) =>
-      Number(c.productId ?? c.id) === pid &&
-      String(c.variantKey || "") === String(hasVariants ? selectedVariant?.key : "")
-    );
-
+    const idx = cart.findIndex((c) => Number(c.productId ?? c.id) === pid);
     if (idx >= 0) {
       const next = [...cart];
       next[idx].quantity = Math.max(1, parseInt(next[idx].quantity, 10) || 0) + addQty;
@@ -99,11 +74,10 @@ export default function ProductDetail() {
     } else {
       cart.push({
         productId: pid,
-        name: product.name + (hasVariants ? `（${selectedVariant?.label}）` : ""),
-        price: displayPriceNumber, // 單位：元（POST /api/orders 時記得 *100 轉成「分」）
+        name: product.name,
+        price: priceNumber,
         quantity: addQty,
-        imageUrl: displayImage,    // ✅ 加入購物車時帶入當前顯示的大圖
-        variantKey: hasVariants ? selectedVariant?.key : undefined,
+        imageUrl: displayImage,
         category: product.category,
       });
       localStorage.setItem(key, JSON.stringify(cart));
@@ -121,7 +95,7 @@ export default function ProductDetail() {
       newList = list.filter((p) => String(p.id) !== String(product.id));
       setIsFav(false);
     } else {
-      newList = [...list, { id: product.id, name: product.name, price: displayPriceNumber, image: displayImage }];
+      newList = [...list, { id: product.id, name: product.name, price: priceNumber, image: displayImage }];
       setIsFav(true);
     }
     localStorage.setItem("favorites", JSON.stringify(newList));
@@ -179,26 +153,10 @@ export default function ProductDetail() {
           <div className="mt-2 flex items-center gap-3 text-sm">
             <Stars rating={product.rating ?? 4.8} />
             <span className="text-neutral-500">({product.reviewCount ?? 0})</span>
-            <span className={`rounded-full px-2 py-0.5 text-xs ${(product?.stock ?? 10) > 0 ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-500"}`}>
-              {(product?.stock ?? 10) > 0 ? `現貨 ${product.stock ?? 10} 件` : "補貨中"}
+            <span className={`rounded-full px-2 py-0.5 text-xs ${(product?.stock ?? 0) > 0 ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-500"}`}>
+              {(product?.stock ?? 0) > 0 ? `現貨 ${product.stock ?? 0} 件` : "補貨中"}
             </span>
           </div>
-
-          {/* 容量選擇器（僅對有 variants 的商品顯示） */}
-          {hasVariants && (
-            <div className="mt-4">
-              <label className="text-sm text-neutral-600">容量</label>
-              <select
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-                value={variantKey}
-                onChange={(e) => setVariantKey(e.target.value)} // 容量改變 → useEffect 切圖
-              >
-                {product.variants.map(v => (
-                  <option key={v.key} value={v.key}>{v.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* 價格 */}
           <div className="mt-4 text-3xl font-bold tracking-tight">{priceText}</div>
@@ -211,7 +169,7 @@ export default function ProductDetail() {
           {/* 規格 */}
           <div className="mt-4">
             <Details title="商品規格">
-              {renderSpecs(mergedSpecs)}
+              {renderSpecs(parsedSpecs)}
             </Details>
           </div>
 
@@ -241,7 +199,7 @@ export default function ProductDetail() {
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-5 py-3 text-white shadow hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ShoppingCart className="h-5 w-5" />
-              {(product?.stock ?? 10) > 0 ? "加入購物車" : "補貨通知"}
+              {(product?.stock ?? 0) > 0 ? "加入購物車" : "補貨通知"}
             </button>
           </div>
 
@@ -261,10 +219,8 @@ export default function ProductDetail() {
   );
 }
 
-/* === 以下為你原檔就有的輔助元件，維持不變 === */
-function PageShell({ children }) {
-  return <div className="min-h-[100dvh] bg-neutral-50 pb-20 md:pb-0">{children}</div>;
-}
+/* === 以下輔助元件維持你的原寫法 === */
+function PageShell({ children }) { return <div className="min-h-[100dvh] bg-neutral-50 pb-20 md:pb-0">{children}</div>; }
 function Details({ title, children }) {
   return (
     <details className="group rounded-2xl border bg-white p-4" open>
@@ -291,23 +247,10 @@ function Stars({ rating = 4.8 }) {
   );
 }
 function renderSpecs(specs) {
-  if (!specs) return <p className="text-sm text-neutral-500">無提供規格。</p>;
-  if (!Array.isArray(specs) && typeof specs === 'object') {
-    return (
-      <ul className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-        {Object.entries(specs).map(([k, v]) => (
-          <li key={k} className="flex items-start justify-between gap-4 rounded-xl border bg-white p-3">
-            <span className="text-neutral-500">{k}</span>
-            <span className="font-medium">{String(v)}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  const items = Array.isArray(specs) ? specs : [String(specs)];
+  if (!specs || specs.length === 0) return <p className="text-sm text-neutral-500">無提供規格。</p>;
   return (
     <ul className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-      {items.map((line, i) => (
+      {specs.map((line, i) => (
         <li key={i} className="flex items-start justify-between gap-4 rounded-xl border bg-white p-3">
           <span className="text-neutral-500">規格</span>
           <span className="font-medium">{line}</span>

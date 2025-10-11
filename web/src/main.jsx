@@ -1,9 +1,7 @@
 // web/src/main.jsx
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import {
-  BrowserRouter, Routes, Route, Link, Navigate, useNavigate, Outlet,
-} from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, Outlet } from 'react-router-dom'
 
 import './index.css'
 
@@ -20,17 +18,30 @@ import AdminLogin from './pages/admin/Login'
 import Orders from './pages/admin/Orders'
 import OrderDetail from './pages/admin/OrderDetail'
 
-// 共用分類頁
+// 分類頁
 import CategoryPage from './pages/CategoryPage.jsx'
 
 // 動畫
 import { motion, AnimatePresence } from 'framer-motion'
 
-// Icons（header / 管理項）
-import { Menu, Heart, ShoppingCart, Home as HomeIcon, Lock, ListChecks, LogOut } from 'lucide-react'
+// Icons
+import { Menu, Heart, ShoppingCart, Home as HomeIcon, Lock, ListChecks, LogOut, Package, Receipt } from 'lucide-react'
 
 // 分類設定
 import { CATEGORIES, matchByKey } from './data/categories'
+
+// 廠商頁面
+import VendorLogin from "./pages/vendor/VendorLogin";
+import VendorRegister from "./pages/vendor/VendorRegister";
+import VendorForgot from "./pages/vendor/VendorForgot";
+import VendorReset from "./pages/vendor/VendorReset";
+import VendorDashboard from "./pages/vendor/VendorDashboard";
+import VendorProducts from "./pages/vendor/VendorProducts";
+import VendorProductForm from "./pages/vendor/VendorProductForm";
+import VendorOrders from "./pages/vendor/VendorOrders";
+
+// Vendor API（保護頁面＆檢查登入）
+import { vGET } from './lib/vendorApi'
 
 /* ---------------- Admin 驗證狀態 ---------------- */
 function useAdminAuthed() {
@@ -54,7 +65,37 @@ function RequireAdmin({ children }) {
   return children
 }
 
-/* ---------------- Header（桌面版）---------------- */
+/* ---------------- Vendor 保護元件 ---------------- */
+function RequireVendor({ children }) {
+  const navigate = useNavigate();
+  const [state, setState] = useState({ loading: true, ok: false });
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { vendor } = await vGET('/me'); // 後端以 Cookie 驗證
+        if (!alive) return;
+        if (vendor) setState({ loading: false, ok: true });
+        else {
+          setState({ loading: false, ok: false });
+          navigate('/vendor/login', { replace: true });
+        }
+      } catch {
+        if (!alive) return;
+        setState({ loading: false, ok: false });
+        navigate('/vendor/login', { replace: true });
+      }
+    })();
+    return () => { alive = false; };
+  }, [navigate]);
+
+  if (state.loading) return null; // 可以改成 skeleton
+  if (!state.ok) return null;     // 已導到登入
+  return children;
+}
+
+/* ---------------- Header ---------------- */
 function Header() {
   const [authed, setAuthed] = useAdminAuthed()
   const navigate = useNavigate()
@@ -63,12 +104,11 @@ function Header() {
   const logout = () => {
     localStorage.removeItem('adminToken')
     setAuthed(false)
-    navigate('/') // 登出回首頁
+    navigate('/')
   }
 
   return (
     <>
-      {/* Top bar */}
       <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
         <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-1">
@@ -92,7 +132,6 @@ function Header() {
         </div>
       </div>
 
-      {/* 左側抽屜選單 */}
       <MenuDrawer
         open={open}
         onClose={() => setOpen(false)}
@@ -106,6 +145,26 @@ function Header() {
 
 /* ---------------- 左側抽屜 ---------------- */
 function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
+  const [vendorAuthed, setVendorAuthed] = useState(false);
+
+  // 抽屜打開時才去檢查一次 vendor 是否登入，避免每次載入都打 API
+  useEffect(() => {
+    let alive = true;
+    if (open) {
+      (async () => {
+        try {
+          const { vendor } = await vGET('/me');
+          if (!alive) return;
+          setVendorAuthed(!!vendor);
+        } catch {
+          if (!alive) return;
+          setVendorAuthed(false);
+        }
+      })();
+    }
+    return () => { alive = false; };
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -137,6 +196,18 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
                   <NavItem key={key} label={label} icon={Icon} onClick={() => onNavigate(`/category/${key}`)} />
                 ))}
               </div>
+
+              {/* 廠商專區 */}
+              <div className="px-4 pt-3 text-xs text-neutral-500">廠商專區</div>
+              <div className="px-2 space-y-1">
+                <NavItem label="廠商登入" icon={Lock} onClick={() => onNavigate('/vendor/login')} />
+                {vendorAuthed && (
+                  <>
+                    <NavItem label="我的商品" icon={Package} onClick={() => onNavigate('/vendor/products')} />
+                    <NavItem label="我的訂單" icon={Receipt} onClick={() => onNavigate('/vendor/orders')} />
+                  </>
+                )}
+              </div>
             </nav>
 
             <div className="border-t p-2">
@@ -148,6 +219,7 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
                   <NavItem label="登出" icon={LogOut} onClick={onLogout} />
                 </>
               )}
+
               <div className="px-2 pt-2 text-[11px] text-neutral-500">© Zeus Shop</div>
             </div>
           </motion.aside>
@@ -188,17 +260,12 @@ function App() {
           {/* 首頁 */}
           <Route path="/" element={<Home />} />
 
-          {/* 用 config 產生所有分類頁 */}
+          {/* 分類頁 */}
           {CATEGORIES.map(cat => (
             <Route
               key={cat.key}
               path={`/category/${cat.key}`}
-              element={
-                <CategoryPage
-                  title={cat.label}
-                  matcher={matchByKey(cat.key)}   // ✅ 用分類 key 精準比對
-                />
-              }
+              element={<CategoryPage title={cat.label} matcher={matchByKey(cat.key)} />}
             />
           ))}
 
@@ -209,10 +276,23 @@ function App() {
           <Route path="/payment/:id" element={<PaymentInfo />} />
           <Route path="/favorites" element={<Favorites />} />
 
-          {/* 後台 */}
+          {/* 後台（保留） */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/orders" element={<RequireAdmin><Orders /></RequireAdmin>} />
           <Route path="/admin/orders/:id" element={<RequireAdmin><OrderDetail /></RequireAdmin>} />
+
+          {/* 廠商：公開頁（可未登入） */}
+          <Route path="/vendor/login" element={<VendorLogin />} />
+          <Route path="/vendor/register" element={<VendorRegister />} />
+          <Route path="/vendor/forgot" element={<VendorForgot />} />
+          <Route path="/vendor/reset" element={<VendorReset />} />
+
+          {/* 廠商：需登入頁 */}
+          <Route path="/vendor" element={<RequireVendor><VendorDashboard /></RequireVendor>} />
+          <Route path="/vendor/products" element={<RequireVendor><VendorProducts /></RequireVendor>} />
+          <Route path="/vendor/products/new" element={<RequireVendor><VendorProductForm /></RequireVendor>} />
+          <Route path="/vendor/products/:id/edit" element={<RequireVendor><VendorProductForm /></RequireVendor>} />
+          <Route path="/vendor/orders" element={<RequireVendor><VendorOrders /></RequireVendor>} />
         </Route>
       </Routes>
     </BrowserRouter>
