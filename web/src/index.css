@@ -1,6 +1,111 @@
 @import "tailwindcss";
 
-/* 可選：我們用到的隱藏水平捲軸樣式 */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* === 淺木系主題（溫暖升級版） === */
+:root{
+  --wood-bg-top: #FAF8F4;       /* 背景上層米白 */
+  --wood-bg-bottom: #F4E8D8;    /* 背景下層淡木黃 */
+  --wood-primary-dark: #7B4F2A; /* Header 深木棕 */
+  --wood-primary-light: #C9A472;/* Header 淺棕 */
+  --wood-accent:#DAB894;        /* 淺木色 */
+  --wood-card:#FFFDFB;          /* 卡片底 */
+  --wood-text:#3B2F2F;          /* 主文字 */
+  --wood-sub:#6B5B4B;           /* 次文字 */
+  --wood-shadow:0 6px 16px rgba(0,0,0,.05);
+}
 
+/* === 全站底色（木質漸層） === */
+html,body{
+  min-height:100%;
+  background:linear-gradient(to bottom,var(--wood-bg-top),var(--wood-bg-bottom));
+  color:var(--wood-text);
+  font-family: "Noto Sans TC","Inter",sans-serif;
+}
+
+/* 外層容器 */
+.wood-app{
+  background:linear-gradient(to bottom,var(--wood-bg-top),var(--wood-bg-bottom));
+  color:var(--wood-text);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* Header、Footer 主題 */
+.header-wood{
+  background:linear-gradient(90deg,var(--wood-primary-dark),var(--wood-primary-light));
+  color:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,0.15);
+}
+.footer-wood{
+  background:linear-gradient(90deg,var(--wood-primary-light),var(--wood-primary-dark));
+  color:#fff;
+  box-shadow:0 -2px 8px rgba(0,0,0,0.1);
+}
+
+/* 區塊 */
+.wood-section{
+  background:var(--wood-card);
+  border:1px solid color-mix(in oklab,var(--wood-accent) 40%,transparent);
+  border-radius:16px;
+  box-shadow:var(--wood-shadow);
+  padding:24px;
+}
+
+/* 卡片 */
+.wood-card{
+  background:var(--wood-card);
+  border:1px solid color-mix(in oklab,var(--wood-accent) 40%,transparent);
+  border-radius:16px;
+  box-shadow:var(--wood-shadow);
+}
+
+/* 標題 */
+.h2-wood{
+  color:var(--wood-primary-dark);
+  font-weight:600;
+  margin-bottom:12px;
+}
+
+/* 木質按鈕 */
+.btn-wood{
+  border:1px solid var(--wood-accent);
+  background:transparent;
+  color:var(--wood-text);
+  padding:8px 12px;
+  border-radius:12px;
+  font-size:14px;
+  transition:background .2s ease, transform .1s ease;
+}
+.btn-wood:hover{
+  background:color-mix(in oklab,var(--wood-accent) 25%,white);
+  transform:translateY(-1px);
+}
+
+/* 排行榜圓點 */
+.badge-rank{
+  width:32px;height:32px;border-radius:9999px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--wood-primary-dark);color:#fff;font-weight:600;
+}
+
+/* Header 玻璃微透明（提供非行內樣式的回退與強化） */
+.header-wood-glass {
+  -webkit-backdrop-filter: saturate(160%) blur(10px);
+  backdrop-filter: saturate(160%) blur(10px);
+}
+
+/* 排行榜 hover：微浮起 + 淡木色光暈 */
+.rank-row {
+  transform: translateY(0);
+}
+.rank-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.08);
+  background: color-mix(in oklab, var(--wood-accent) 16%, var(--wood-card));
+}
+
+/* 商品卡 hover 微光暈效果 */
+article:hover {
+  background: color-mix(in oklab, var(--wood-accent) 8%, white);
+  box-shadow: 0 8px 22px rgba(139, 94, 60, 0.15);
+}

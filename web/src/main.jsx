@@ -95,11 +95,19 @@ function RequireVendor({ children }) {
   return children;
 }
 
-/* ---------------- Header ---------------- */
+/* ---------------- Header（毛玻璃＋半透明 on scroll） ---------------- */
 function Header() {
   const [authed, setAuthed] = useAdminAuthed()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const logout = () => {
     localStorage.removeItem('adminToken')
@@ -107,15 +115,29 @@ function Header() {
     navigate('/')
   }
 
+  // 玻璃感背景：漸層＋透明度隨捲動調整
+  const glassBg = scrolled
+    ? 'linear-gradient(90deg, rgba(123,79,42,0.85) 0%, rgba(201,164,114,0.85) 100%)'
+    : 'linear-gradient(90deg, rgba(123,79,42,0.65) 0%, rgba(201,164,114,0.65) 100%)'
+
   return (
     <>
-      <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
-        <div className="flex items-center justify-between py-2">
+      <div
+        className="sticky top-0 z-50 header-wood-glass"
+        style={{
+          background: glassBg,
+          backdropFilter: 'saturate(160%) blur(10px)',
+          WebkitBackdropFilter: 'saturate(160%) blur(10px)',
+          boxShadow: scrolled ? '0 6px 14px rgba(0,0,0,0.12)' : '0 3px 8px rgba(0,0,0,0.08)',
+          transition: 'box-shadow .2s ease, background .2s ease',
+        }}
+      >
+        <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-2 text-white">
           <div className="flex items-center gap-1">
-            <button onClick={() => setOpen(true)} className="p-2 -ml-1 active:scale-[0.98]">
+            <button onClick={() => setOpen(true)} className="p-2 -ml-1 active:scale-[0.98] text-white/95">
               <Menu className="w-6 h-6" />
             </button>
-            <button onClick={() => navigate('/favorites')} className="p-2">
+            <button onClick={() => navigate('/favorites')} className="p-2 text-white/95">
               <Heart className="w-5 h-5" />
             </button>
           </div>
@@ -125,7 +147,7 @@ function Header() {
           </button>
 
           <div className="flex items-center gap-1">
-            <button onClick={() => navigate('/cart')} className="p-2 active:scale-[0.98]">
+            <button onClick={() => navigate('/cart')} className="p-2 active:scale-[0.98] text-white/95">
               <ShoppingCart className="w-6 h-6" />
             </button>
           </div>
@@ -140,6 +162,16 @@ function Header() {
         onLogout={logout}
       />
     </>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="footer-wood mt-16 py-4">
+      <div className="max-w-6xl mx-auto px-6 text-center text-sm opacity-90">
+        © {new Date().getFullYear()} ZeusShop. 以木質溫度打造溫暖購物體驗 🌾
+      </div>
+    </footer>
   )
 }
 
@@ -244,7 +276,7 @@ function NavItem({ label, onClick, icon: Icon }) {
 /* ---------------- 桌面殼 ---------------- */
 function DesktopShell() {
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
+    <div className="wood-app" style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
       <Header />
       <Outlet />
     </div>

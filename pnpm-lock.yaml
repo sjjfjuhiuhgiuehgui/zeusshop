@@ -11,6 +11,9 @@ importers:
       lucide-react:
         specifier: ^0.544.0
         version: 0.544.0(react@19.1.1)
+      swiper:
+        specifier: ^12.0.2
+        version: 12.0.2
 
 packages:
 
@@ -23,6 +26,10 @@ packages:
     resolution: {integrity: sha512-w8nqGImo45dmMIfljjMwOGtbmC/mk4CMYhWIicdSflH91J9TyCyczcPFXJzrZ/ZXcgGRFeP6BU0BEJTw6tZdfQ==}
     engines: {node: '>=0.10.0'}
 
+  swiper@12.0.2:
+    resolution: {integrity: sha512-y8F6fDGXmTVVgwqJj6I00l4FdGuhpFJn0U/9Ucn1MwWOw3NdLV8aH88pZOjyhBgU/6PyBlUx+JuAQ5KMWz906Q==}
+    engines: {node: '>= 4.7.0'}
+
 snapshots:
 
   lucide-react@0.544.0(react@19.1.1):
@@ -30,3 +37,5 @@ snapshots:
       react: 19.1.1
 
   react@19.1.1: {}
+
+  swiper@12.0.2: {}
