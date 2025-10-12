@@ -9,9 +9,10 @@ type Product struct {
 	Price       int64     `json:"price"`
 	Stock       int       `json:"stock"`
 	IsActive    bool      `json:"isActive"`
-	ImageURL    string    `gorm:"column:image_url" json:"imageUrl"`
+	Visible     bool      `gorm:"default:false" json:"visible"`  // ★ 新增這行
+	Category    string    `gorm:"size:50" json:"category"`       // ★ 類別（3C/home/beauty）
 
-	// ★ 新增：所屬廠商、規格（建議存 JSON 字串）
+	ImageURL string `gorm:"column:image_url" json:"imageUrl"`
 	VendorID string `gorm:"size:36;index" json:"vendorId"`
 	Spec     string `gorm:"type:text" json:"spec"`
 

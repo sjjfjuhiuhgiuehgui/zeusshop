@@ -77,9 +77,11 @@ func RegisterVendorProductRoutes(r *gin.Engine, gdb *gorm.DB) {
 			Name        string   `json:"name" binding:"required"`        // ← 對齊 model.go
 			Description string   `json:"description"`                    // ← 對齊 model.go
 			Spec        string   `json:"spec"`                           // 建議傳 JSON 字串
+			Category    string   `json:"category"`
 			Price       int64    `json:"price" binding:"required"`
 			Stock       int      `json:"stock" binding:"required"`       // ← 對齊 model.go（int）
 			IsActive    bool     `json:"isActive"`                       // ← 對齊 model.go
+			Visible     bool     `json:"visible"`     // ★ 新增
 			Images      []string `json:"images"`                         // 上傳後得到的 URL 陣列
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -91,11 +93,12 @@ func RegisterVendorProductRoutes(r *gin.Engine, gdb *gorm.DB) {
 			Name:        req.Name,
 			Description: req.Description,
 			Spec:        req.Spec,
+			Category:    req.Category,
 			Price:       req.Price,
 			Stock:       req.Stock,
 			IsActive:    req.IsActive,
+			Visible:     req.Visible,
 			VendorID:    vid,
-			// ImageURL：如需封面可使用第一張 images
 		}
 		if err := gdb.Create(prd).Error; err != nil {
 			c.JSON(500, gin.H{"ok": false, "error": "DB_ERROR"})
