@@ -221,4 +221,24 @@ func RegisterVendorProductRoutes(r *gin.Engine, gdb *gorm.DB) {
 		tx.Commit()
 		c.JSON(200, gin.H{"ok": true})
 	})
+
+	// 新增：切換商品上架狀態
+	grp.PUT("/products/:id/visible", func(c *gin.Context) {
+		vendorID := c.GetString("vendor_id")
+		var req struct {
+			Visible bool `json:"visible"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"ok": false, "error": "INVALID_INPUT"})
+			return
+		}
+		if err := gdb.Model(&p.Product{}).
+			Where("id = ? AND vendor_id = ?", c.Param("id"), vendorID).
+			Update("visible", req.Visible).Error; err != nil {
+			c.JSON(500, gin.H{"ok": false, "error": "DB_ERROR"})
+			return
+		}
+		c.JSON(200, gin.H{"ok": true})
+	})
+
 }
