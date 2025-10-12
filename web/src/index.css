@@ -109,3 +109,80 @@ article:hover {
   background: color-mix(in oklab, var(--wood-accent) 8%, white);
   box-shadow: 0 8px 22px rgba(139, 94, 60, 0.15);
 }
+
+/* 讓主內容兩側有柔光層次 */
+.wood-app::before,
+.wood-app::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  width: 100px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+.wood-app::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(139,94,60,0.15), transparent);
+}
+.wood-app::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(139,94,60,0.15), transparent);
+}
+
+
+/* ===== 木質 Drawer 風格 ===== */
+.menu-drawer{
+  /* 溫潤漸層＋玻璃感 */
+  background: linear-gradient(to bottom, #C9A472, #7B4F2A);
+  color: #fff;
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  backdrop-filter: blur(6px) saturate(140%);
+}
+
+/* 區塊標題 */
+.menu-section-title{
+  color: #fff;
+  opacity: .95;
+  font-weight: 700;
+  letter-spacing: .5px;
+  font-size: 13px;
+  margin: 12px 12px 6px;
+}
+
+/* 分隔線（帶淡淡木色） */
+.menu-divider{
+  height: 1px;
+  margin: 10px 12px;
+  background: color-mix(in oklab, var(--wood-accent) 50%, transparent);
+  opacity: .5;
+  border-radius: 999px;
+}
+
+/* 選單項目（木質 hover + 微移動） */
+.menu-item{
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+  background: transparent;
+  color: #fff;
+}
+.menu-item:hover{
+  transform: translateX(3px);
+  background: color-mix(in oklab, var(--wood-accent) 22%, rgba(255,255,255,.08));
+  box-shadow: 0 6px 16px rgba(0,0,0,.15) inset;
+}
+
+/* icon 木質化（略亮） */
+.icon-wood{ color: #fff; opacity: .92 }
+
+/* 小膠囊徽章（例如 已登入） */
+.menu-badge{
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.2);
+  color: #fff;
+}

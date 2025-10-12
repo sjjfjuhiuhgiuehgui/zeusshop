@@ -175,7 +175,7 @@ function Footer() {
   )
 }
 
-/* ---------------- 左側抽屜 ---------------- */
+/* ---------------- 左側抽屜（木質・淺色版） ---------------- */
 function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
   const [vendorAuthed, setVendorAuthed] = useState(false);
 
@@ -197,6 +197,13 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
     return () => { alive = false; };
   }, [open]);
 
+  const lightDrawerStyle = {
+    background: 'linear-gradient(to bottom, #FAF7F2, #EBDDCA)', // 更淺的木質漸層
+    color: 'var(--wood-text)',
+    backdropFilter: 'blur(6px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(6px) saturate(140%)',
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -209,50 +216,95 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
             exit={{ opacity: 0 }}
           />
           <motion.aside
-            className="fixed left-0 top-0 bottom-0 z-50 w-80 max-w-[82%] bg-white shadow-2xl flex flex-col"
+            className="fixed left-0 top-0 bottom-0 z-50 w-80 max-w-[88%] shadow-2xl flex flex-col"
+            style={lightDrawerStyle}
             initial={{ x: -340 }}
             animate={{ x: 0 }}
             exit={{ x: -340 }}
             transition={{ type: 'tween', duration: 0.18 }}
           >
-            <div className="p-4 border-b flex items-center justify-between">
-              <div className="text-lg font-semibold">選單</div>
-              <button onClick={onClose} className="p-1 text-neutral-600">✕</button>
+            {/* Drawer Header */}
+            <div className="p-4 border-b flex items-center justify-between"
+                 style={{ borderColor: 'color-mix(in oklab, var(--wood-accent) 40%, transparent)' }}>
+              <div className="text-base font-semibold tracking-wide" style={{ color: 'var(--wood-primary-dark)' }}>
+                選單
+              </div>
+              <button onClick={onClose} className="p-1 text-[var(--wood-sub)] hover:opacity-80">✕</button>
             </div>
 
-            <nav className="p-2 overflow-auto flex-1">
-              <NavItem label="首頁" icon={HomeIcon} onClick={() => onNavigate('/')} />
-              <div className="px-4 pt-3 pb-1 text-xs text-neutral-500">全部分類</div>
-              <div className="px-2">
+            {/* Drawer Body */}
+            <nav className="p-3 overflow-auto flex-1">
+              {/* 快速連結 */}
+              <div className="px-3 pt-1 pb-2 text-sm font-semibold tracking-wide"
+                   style={{ color: 'var(--wood-primary-dark)' }}>
+                快速連結
+              </div>
+              <div className="px-1 space-y-1">
+                <NavItem label="首頁" onClick={() => onNavigate('/')} />
+                <NavItem label="收藏清單" onClick={() => onNavigate('/favorites')} />
+                <NavItem label="購物車" onClick={() => onNavigate('/cart')} />
+              </div>
+
+              {/* 分隔 */}
+              <div className="my-3 h-[1px] rounded-full"
+                   style={{ background: 'color-mix(in oklab, var(--wood-accent) 50%, transparent)' }} />
+
+              {/* 全部分類 */}
+              <div className="px-3 pb-2 text-sm font-semibold tracking-wide"
+                   style={{ color: 'var(--wood-primary-dark)' }}>
+                全部分類
+              </div>
+              <div className="px-1">
                 {CATEGORIES.map(({ key, label, Icon }) => (
                   <NavItem key={key} label={label} icon={Icon} onClick={() => onNavigate(`/category/${key}`)} />
                 ))}
               </div>
 
+              {/* 分隔 */}
+              <div className="my-3 h-[1px] rounded-full"
+                   style={{ background: 'color-mix(in oklab, var(--wood-accent) 50%, transparent)' }} />
+
               {/* 廠商專區 */}
-              <div className="px-4 pt-3 text-xs text-neutral-500">廠商專區</div>
-              <div className="px-2 space-y-1">
-                <NavItem label="廠商登入" icon={Lock} onClick={() => onNavigate('/vendor/login')} />
+              <div className="px-3 pb-2 text-sm font-semibold tracking-wide"
+                   style={{ color: 'var(--wood-primary-dark)' }}>
+                廠商專區
+              </div>
+              <div className="px-1 space-y-1">
+                <NavItem
+                  label="廠商登入"
+                  onClick={() => onNavigate('/vendor/login')}
+                  right={vendorAuthed ? <span className="text-xs rounded-full px-2 py-1"
+                    style={{ background: 'rgba(139,94,60,.12)', color: 'var(--wood-primary-dark)' }}>已登入</span> : null}
+                />
                 {vendorAuthed && (
                   <>
-                    <NavItem label="我的商品" icon={Package} onClick={() => onNavigate('/vendor/products')} />
-                    <NavItem label="我的訂單" icon={Receipt} onClick={() => onNavigate('/vendor/orders')} />
+                    <NavItem label="我的商品" onClick={() => onNavigate('/vendor/products')} />
+                    <NavItem label="我的訂單"  onClick={() => onNavigate('/vendor/orders')} />
                   </>
                 )}
               </div>
             </nav>
 
-            <div className="border-t p-2">
+            {/* Drawer Footer */}
+            <div className="border-t p-3"
+                 style={{ borderColor: 'color-mix(in oklab, var(--wood-accent) 40%, transparent)' }}>
               {!authed ? (
-                <NavItem label="賣家登入" icon={Lock} onClick={() => onNavigate('/admin/login')} />
+                <NavItem label="賣家登入" onClick={() => onNavigate('/admin/login')} />
               ) : (
-                <>
-                  <NavItem label="訂單管理" icon={ListChecks} onClick={() => onNavigate('/admin/orders')} />
-                  <NavItem label="登出" icon={LogOut} onClick={onLogout} />
-                </>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => onNavigate('/admin/orders')}
+                          className="w-full rounded-xl px-4 py-3 text-left transition"
+                          style={{ background: 'rgba(218,184,148,.20)' }}>
+                    訂單管理
+                  </button>
+                  <button onClick={onLogout}
+                          className="rounded-xl px-4 py-3 transition"
+                          style={{ background: 'rgba(218,184,148,.20)' }}>
+                    登出
+                  </button>
+                </div>
               )}
-
-              <div className="px-2 pt-2 text-[11px] text-neutral-500">© Zeus Shop</div>
+              <div className="px-1 pt-2 text-[11px]" style={{ color: 'var(--wood-sub)' }}>© Zeus Shop</div>
             </div>
           </motion.aside>
         </>
@@ -261,20 +313,29 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
   )
 }
 
-function NavItem({ label, onClick, icon: Icon }) {
+/* 單一選單項目（淺木 hover + 微移動） */
+function NavItem({ label, onClick, icon: Icon, right = null }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-neutral-50 active:scale-[0.99] text-[15px]"
+      type="button"
+      className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 transition"
+      style={{ background: 'transparent' }}
+      onMouseEnter={e => e.currentTarget.style.background = 'rgba(218,184,148,.22)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
-      {Icon && <Icon className="w-5 h-5 opacity-75" />}
-      <span>{label}</span>
+      <span className="flex items-center gap-3">
+        {Icon && <Icon className="w-5 h-5" style={{ color: 'var(--wood-primary-dark)', opacity: .9 }} />}
+        <span className="text-[15px]">{label}</span>
+      </span>
+      {right}
     </button>
   )
 }
 
 /* ---------------- 桌面殼 ---------------- */
 function DesktopShell() {
+  // 略微放大主容器寬度，減少左右留白
   return (
     <div className="wood-app" style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
       <Header />
