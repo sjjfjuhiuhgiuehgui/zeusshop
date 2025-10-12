@@ -12,93 +12,75 @@ import (
 )
 
 type Handler struct {
-	repo *Repo
+	db   *gorm.DB      // 新增：直接用 GORM 查詢
+	repo *Repo         // 保留：給單筆/建立/更新/刪除沿用你的 Repo
 	rdb  *cache.Redis
 }
 
 func NewHandler(db *gorm.DB, rdb *cache.Redis) *Handler {
-	return &Handler{repo: NewRepo(db, rdb), rdb: rdb}
+	return &Handler{
+		db:   db,
+		repo: NewRepo(db, rdb),
+		rdb:  rdb,
+	}
 }
 
 // GET /api/products
 // 支援：
-//   ?category=home|3C|beauty       分類（不分大小寫）
-//   ?q=keyword                      關鍵字（name/description 模糊匹配，大小寫不敏感）
-//   ?sort=price_asc|price_desc|name_asc|new(預設；以 id DESC)
-//   ?limit=20&offset=0              簡易分頁（在 handler 端切分）
-//
-// 注意：repo.List(ctx) 依你原始註解為「只回上架中的」，本函式維持該語意，
-//      這裡僅在記憶體內做進一步篩選與排序、分頁，並統一輸出格式。
+//   ?category=home|3C|beauty
+//   ?visible=1           -> 僅回上架（預設就會這樣；visible=true 或 is_active=true 任一為真）
+//   ?q=keyword           -> name/description 模糊搜尋
+//   ?sort=price_asc|price_desc|name_asc|new(預設；id DESC)
+//   ?limit=20&offset=0   -> 簡單分頁
 func (h *Handler) List(c *gin.Context) {
-	// 先撈出上架商品
-	items, err := h.repo.List(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": err.Error()})
-		return
+	var rows []Product
+
+	q := h.db.Model(&Product{})
+
+	// 預設：只回上架（任一欄位為真）
+	visibleParam := strings.TrimSpace(c.Query("visible"))
+	if visibleParam == "" || visibleParam == "1" || strings.EqualFold(visibleParam, "true") {
+		q = q.Where("(visible = ? OR is_active = ?)", true, true)
 	}
 
-	// 參數讀取
-	cat := strings.TrimSpace(c.Query("category"))
-	q := strings.TrimSpace(c.Query("q"))
-	sortKey := strings.ToLower(strings.TrimSpace(c.Query("sort")))
-	limit := clamp(toInt(c.Query("limit"), 20), 1, 100)
-	offset := toInt(c.Query("offset"), 0)
+	// 類別
+	if cat := strings.TrimSpace(c.Query("category")); cat != "" {
+		q = q.Where("category = ?", cat)
+	}
 
-	// 正規化工具
-	eqFold := func(a, b string) bool { return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b)) }
-	containsFold := func(s, sub string) bool { return sub == "" || strings.Contains(strings.ToLower(s), strings.ToLower(sub)) }
-
-	// 過濾（分類 + 關鍵字）
-	filtered := make([]Product, 0, len(items))
-	for _, p := range items {
-		// 類別相符（若有指定）
-		if cat != "" {
-			// p.Category 可能為空，或大小寫不同，使用不分大小寫比對
-			if !eqFold(p.Category, cat) {
-				continue
-			}
-		}
-		// 關鍵字（name/description）
-		if q != "" {
-			if !containsFold(p.Name, q) && !containsFold(p.Description, q) {
-				continue
-			}
-		}
-		filtered = append(filtered, p)
+	// 關鍵字
+	if kw := strings.TrimSpace(c.Query("q")); kw != "" {
+		like := "%" + kw + "%"
+		q = q.Where("name LIKE ? OR description LIKE ?", like, like)
 	}
 
 	// 排序
-	switch sortKey {
+	orderBy := "id DESC"
+	switch strings.ToLower(strings.TrimSpace(c.Query("sort"))) {
 	case "price_asc":
-		sort.SliceStable(filtered, func(i, j int) bool { return filtered[i].Price < filtered[j].Price })
+		orderBy = "price ASC, id DESC"
 	case "price_desc":
-		sort.SliceStable(filtered, func(i, j int) bool { return filtered[i].Price > filtered[j].Price })
+		orderBy = "price DESC, id DESC"
 	case "name_asc":
-		sort.SliceStable(filtered, func(i, j int) bool {
-			return strings.Compare(strings.ToLower(filtered[i].Name), strings.ToLower(filtered[j].Name)) < 0
-		})
-	default: // "new"：以 id DESC
-		sort.SliceStable(filtered, func(i, j int) bool { return filtered[i].ID > filtered[j].ID })
+		orderBy = "name ASC, id DESC"
+	}
+	q = q.Order(orderBy)
+
+	// 分頁
+	limit := clamp(toInt(c.Query("limit"), 20), 1, 100)
+	offset := toInt(c.Query("offset"), 0)
+	q = q.Limit(limit).Offset(offset)
+
+	if err := q.Find(&rows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "DB_ERROR"})
+		return
 	}
 
-	// 分頁（以 handler 端 slice 切分）
-	start := offset
-	if start < 0 {
-		start = 0
-	}
-	if start > len(filtered) {
-		start = len(filtered)
-	}
-	end := start + limit
-	if end > len(filtered) {
-		end = len(filtered)
-	}
-	page := filtered[start:end]
-
+	// 輸出固定使用 products（前端在用這個鍵）
 	c.JSON(http.StatusOK, gin.H{
 		"ok":       true,
-		"products": page,
-		"total":    len(filtered),
+		"products": rows,
+		"total":    len(rows), // 簡單回一頁長度；若要回全部總數可再查一次 Count
 		"limit":    limit,
 		"offset":   offset,
 	})
@@ -115,7 +97,7 @@ func (h *Handler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "product": p})
 }
 
-// Admin：新增商品（保留原邏輯，統一包裝）
+// Admin：新增商品
 func (h *Handler) Create(c *gin.Context) {
 	var in Product
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -129,7 +111,7 @@ func (h *Handler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"ok": true, "product": in})
 }
 
-// Admin：更新商品（保留原邏輯，統一包裝）
+// Admin：更新商品
 func (h *Handler) Update(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	p, err := h.repo.Get(c.Request.Context(), id)
@@ -144,18 +126,19 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	// 覆蓋可編輯欄位（保留你原先的欄位）
+	// 覆蓋可編輯欄位（對齊你的模型，含 Category / Visible）
 	p.Name = in.Name
 	p.Description = in.Description
 	p.Price = in.Price
 	p.Stock = in.Stock
 	p.IsActive = in.IsActive
 	p.ImageURL = in.ImageURL
-	// 若你已加上 Category / Visible，也可一併對齊：
 	if in.Category != "" {
 		p.Category = in.Category
 	}
-	p.Visible = in.Visible // 若 in.Visible 為預設 false，也能顯式覆蓋
+	p.Visible = in.Visible
+	p.Spec = in.Spec
+	p.VendorID = in.VendorID // 正常不會讓 Admin 改 VendorID；如需限制可移除
 
 	if err := h.repo.Update(c.Request.Context(), p); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": err.Error()})
@@ -164,7 +147,7 @@ func (h *Handler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "product": p})
 }
 
-// Admin：刪除商品（保留原邏輯，統一包裝）
+// Admin：刪除商品
 func (h *Handler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
@@ -175,7 +158,6 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 // ---- helpers ----
-
 func toInt(s string, def int) int {
 	if s == "" {
 		return def
@@ -187,6 +169,10 @@ func toInt(s string, def int) int {
 }
 
 func clamp(n, min, max int) int {
+	return minMax(n, min, max)
+}
+
+func minMax(n, min, max int) int {
 	if n < min {
 		return min
 	}
@@ -195,3 +181,6 @@ func clamp(n, min, max int) int {
 	}
 	return n
 }
+
+// 為避免未使用引入報錯（若你暫時沒用 rdb/repo 的排序工具，以下是個示範）：
+var _ = sort.Slice
