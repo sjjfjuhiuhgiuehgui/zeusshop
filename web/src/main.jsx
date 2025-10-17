@@ -1,7 +1,7 @@
 // web/src/main.jsx
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from 'react-router-dom'
 
 import './index.css'
 
@@ -25,7 +25,7 @@ import CategoryPage from './pages/CategoryPage.jsx'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // Icons
-import { Menu, Heart, ShoppingCart, Home as HomeIcon, Lock, ListChecks, LogOut, Package, Receipt } from 'lucide-react'
+import { Menu, Heart, ShoppingCart } from 'lucide-react'
 
 // 分類設定
 import { CATEGORIES, matchByKey } from './data/categories'
@@ -165,19 +165,68 @@ function Header() {
   )
 }
 
+/* ---------------- Footer（木質資訊版） ---------------- */
 function Footer() {
   return (
-    <footer className="footer-wood mt-16 py-4">
-      <div className="max-w-6xl mx-auto px-6 text-center text-sm opacity-90">
-        © {new Date().getFullYear()} ZeusShop. 以木質溫度打造溫暖購物體驗 🌾
+    <footer
+      className="mt-20 pt-8 pb-6 text-sm"
+      style={{
+        background: 'linear-gradient(to right, #F4E8D8, #FAF7F2)',
+        borderTop: '1px solid color-mix(in oklab, var(--wood-accent) 40%, transparent)',
+        color: 'var(--wood-text)',
+      }}
+    >
+      <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center md:text-left">
+        {/* 公司名稱 */}
+        <div className="flex flex-col items-center md:items-start">
+          <h3 className="font-semibold text-base" style={{ color: 'var(--wood-primary-dark)' }}>
+            天騵國際有限公司
+          </h3>
+          <p className="mt-1 text-xs" style={{ color: 'var(--wood-sub)' }}>
+            Zeus International Co., Ltd.
+          </p>
+        </div>
+
+        {/* 聯絡資訊 */}
+        <div className="flex flex-col items-center md:items-start">
+          <p>
+            📧 信箱：
+            <a
+              href="mailto:zeus1110303@gmail.com"
+              className="hover:underline"
+              style={{ color: 'var(--wood-primary-dark)' }}
+            >
+              zeus1110303@gmail.com
+            </a>
+          </p>
+          <p className="mt-1">
+            ☎ 電話：
+            <a
+              href="tel:0903788728"
+              className="hover:underline"
+              style={{ color: 'var(--wood-primary-dark)' }}
+            >
+              0903-788-728
+            </a>
+          </p>
+        </div>
+
+        {/* 版權宣告 */}
+        <div className="flex flex-col items-center md:items-end justify-center text-xs opacity-80">
+          <p>© {new Date().getFullYear()} ZeusShop </p>
+          <p>以木質溫度打造溫暖購物體驗 🌾</p>
+        </div>
       </div>
     </footer>
-  )
+  );
 }
+
 
 /* ---------------- 左側抽屜（木質・淺色版） ---------------- */
 function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
   const [vendorAuthed, setVendorAuthed] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // 抽屜打開時才去檢查一次 vendor 是否登入，避免每次載入都打 API
   useEffect(() => {
@@ -203,6 +252,16 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
     backdropFilter: 'blur(6px) saturate(140%)',
     WebkitBackdropFilter: 'blur(6px) saturate(140%)',
   };
+
+  const handleVendorLogout = () => {
+    // 清除 vtoken（Server 沒提供 /logout 就在前端清 cookie）
+    document.cookie = 'vtoken=; Path=/; Max-Age=0; SameSite=Lax'
+    setVendorAuthed(false)
+    // 若目前在廠商頁，立刻導回首頁，避免看到內容
+    if (location.pathname.startsWith('/vendor/')) {
+      navigate('/', { replace: true })
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -266,28 +325,33 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
 
               {/* 廠商專區 */}
               <div className="px-3 pb-2 text-sm font-semibold tracking-wide"
-                   style={{ color: 'var(--wood-primary-dark)' }}>
+                  style={{ color: 'var(--wood-primary-dark)' }}>
                 廠商專區
               </div>
               <div className="px-1 space-y-1">
-                <NavItem
-                  label="廠商登入"
-                  onClick={() => onNavigate('/vendor/login')}
-                  right={vendorAuthed ? <span className="text-xs rounded-full px-2 py-1"
-                    style={{ background: 'rgba(139,94,60,.12)', color: 'var(--wood-primary-dark)' }}>已登入</span> : null}
-                />
-                {vendorAuthed && (
+                {!vendorAuthed ? (
+                  // 未登入 → 顯示「廠商登入」
+                  <NavItem
+                    label="廠商登入"
+                    onClick={() => onNavigate('/vendor/login')}
+                  />
+                ) : (
+                  // 已登入 → 顯示「廠商登出」＋ 後台快捷
                   <>
                     <NavItem label="我的商品" onClick={() => onNavigate('/vendor/products')} />
                     <NavItem label="我的訂單"  onClick={() => onNavigate('/vendor/orders')} />
+                    <NavItem label="廠商登出" onClick={handleVendorLogout} />
                   </>
                 )}
               </div>
+
             </nav>
 
             {/* Drawer Footer */}
             <div className="border-t p-3"
                  style={{ borderColor: 'color-mix(in oklab, var(--wood-accent) 40%, transparent)' }}>
+              {/* Admin 區塊（保留原本行為） */}
+              {/* 未登入 Admin */}
               {!authed ? (
                 <NavItem label="賣家登入" onClick={() => onNavigate('/admin/login')} />
               ) : (
@@ -304,7 +368,7 @@ function MenuDrawer({ open, onClose, onNavigate, authed, onLogout }) {
                   </button>
                 </div>
               )}
-              <div className="px-1 pt-2 text-[11px]" style={{ color: 'var(--wood-sub)' }}>© Zeus Shop</div>
+              <div className="px-1 pt-2 text[11px]" style={{ color: 'var(--wood-sub)' }}>© Zeus Shop</div>
             </div>
           </motion.aside>
         </>
@@ -340,6 +404,7 @@ function DesktopShell() {
     <div className="wood-app" style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
       <Header />
       <Outlet />
+      <Footer />
     </div>
   )
 }
@@ -380,7 +445,7 @@ function App() {
           <Route path="/vendor/forgot" element={<VendorForgot />} />
           <Route path="/vendor/reset" element={<VendorReset />} />
 
-          {/* 廠商：需登入頁 */}
+          {/* 廠商：需登入頁（加上保護） */}
           <Route path="/vendor" element={<RequireVendor><VendorDashboard /></RequireVendor>} />
           <Route path="/vendor/products" element={<RequireVendor><VendorProducts /></RequireVendor>} />
           <Route path="/vendor/products/new" element={<RequireVendor><VendorProductForm /></RequireVendor>} />
