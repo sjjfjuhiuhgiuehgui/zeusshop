@@ -1,8 +1,10 @@
+// server/internal/vendors/routes/vendor_products.go
 package routes
 
 import (
 	"errors"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/config"
 	"github.com/sjjfjuhiuhgiuehgui/zeusshop/server/internal/product"
 )
 
@@ -50,14 +51,13 @@ func RegisterVendorProductRoutes(r *gin.Engine, db *gorm.DB) {
 		vendorID := c.GetString(ctxKeyVendorID)
 
 		var req struct {
-			Name        string  `json:"name"`
-			Category    string  `json:"category"`
-			Price       float64 `json:"price"`
-			Stock       int     `json:"stock"`
-			Description string  `json:"description"`
-			ImageURL    string  `json:"imageUrl"` // 單張主圖（多圖請用 /upload + 後續補 images 表）
-			Spec        string  `json:"spec"`
-			// 即使前端有帶 isActive/visible，也會在這裡被覆蓋為 true（自動上架）
+			Name        string `json:"name"`
+			Category    string `json:"category"`
+			Price       int64  `json:"price"` // ← int64 與 model 對齊
+			Stock       int    `json:"stock"`
+			Description string `json:"description"`
+			ImageURL    string `json:"imageUrl"`
+			Spec        string `json:"spec"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "BAD_JSON"})
@@ -74,10 +74,8 @@ func RegisterVendorProductRoutes(r *gin.Engine, db *gorm.DB) {
 			c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "CATEGORY_REQUIRED"})
 			return
 		}
-		// 規範分類 key（home / 3C / beauty）
 		switch strings.ToLower(cat) {
 		case "home", "3c", "beauty":
-			// ok
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "INVALID_CATEGORY"})
 			return
@@ -85,13 +83,13 @@ func RegisterVendorProductRoutes(r *gin.Engine, db *gorm.DB) {
 
 		p := &product.Product{
 			Name:        req.Name,
-			Category:    normalizeCategory(cat), // 轉回你資料庫慣用大小寫
-			Price:       req.Price,
+			Category:    normalizeCategory(cat),
+			Price:       req.Price, // int64
 			Stock:       req.Stock,
 			Description: req.Description,
 			ImageURL:    req.ImageURL,
 			Spec:        req.Spec,
-			VendorID:    uuid.MustParse(vendorID),
+			VendorID:    vendorID, // ← 直接使用字串，不做 uuid.MustParse
 
 			// ★ 自動上架（關鍵）
 			Visible:  true,
@@ -153,15 +151,15 @@ func RegisterVendorProductRoutes(r *gin.Engine, db *gorm.DB) {
 		}
 
 		var req struct {
-			Name        *string  `json:"name"`
-			Category    *string  `json:"category"`
-			Price       *float64 `json:"price"`
-			Stock       *int     `json:"stock"`
-			Description *string  `json:"description"`
-			ImageURL    *string  `json:"imageUrl"`
-			Spec        *string  `json:"spec"`
-			Visible     *bool    `json:"visible"`
-			IsActive    *bool    `json:"isActive"`
+			Name        *string `json:"name"`
+			Category    *string `json:"category"`
+			Price       *int64  `json:"price"` // ← int64
+			Stock       *int    `json:"stock"`
+			Description *string `json:"description"`
+			ImageURL    *string `json:"imageUrl"`
+			Spec        *string `json:"spec"`
+			Visible     *bool   `json:"visible"`
+			IsActive    *bool   `json:"isActive"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "BAD_JSON"})
@@ -184,7 +182,7 @@ func RegisterVendorProductRoutes(r *gin.Engine, db *gorm.DB) {
 			}
 		}
 		if req.Price != nil {
-			p.Price = *req.Price
+			p.Price = *req.Price // int64
 		}
 		if req.Stock != nil {
 			p.Stock = *req.Stock
@@ -229,7 +227,7 @@ func RegisterVendorProductRoutes(r *gin.Engine, db *gorm.DB) {
 
 // 讀取 vtoken cookie 驗證，寫入 vendorID 到 context
 func requireVendor(c *gin.Context) {
-	secret := config.Load().JWTSecret
+	secret := os.Getenv("JWT_SECRET") // ← 與你現有環境變數一致
 	if secret == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "INVALID_TOKEN"})
 		return
