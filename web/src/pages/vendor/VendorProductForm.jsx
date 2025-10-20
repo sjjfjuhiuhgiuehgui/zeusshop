@@ -1,19 +1,6 @@
 import { useEffect, useState } from "react";
 import { CATEGORIES } from "../../data/categories";
-
-// 小工具：上傳圖片到 /api/vendor/upload（若你已有 vUPLOAD 可替換）
-async function uploadFile(file) {
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await fetch("/api/vendor/upload", {
-    method: "POST",
-    credentials: "include",
-    body: fd,
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  return data.url; // 後端回傳 {url: "..."} 的格式
-}
+import { vUPLOAD } from "../../lib/vendorApi";
 
 export default function VendorProductForm() {
   const isEdit = location.pathname.includes("/edit");
@@ -21,10 +8,10 @@ export default function VendorProductForm() {
 
   // 表單欄位（價格/數量預設為空字串，不帶 0）
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");                // 類別
-  const [price, setPrice] = useState("");                      // 價格（字串）
-  const [stock, setStock] = useState("");                      // 庫存（字串）
-  const [description, setDescription] = useState("");          // 敘述
+  const [category, setCategory] = useState("");
+  const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("");
+  const [description, setDescription] = useState("");
   const [spec, setSpec] = useState(() =>
     JSON.stringify(
       [
@@ -35,20 +22,19 @@ export default function VendorProductForm() {
       null,
       2
     )
-  ); // 統一預填範例，方便客服修改
-  const [images, setImages] = useState([]);                    // 圖片 URL 陣列
-  const [isActive, setIsActive] = useState(true);              // 上架狀態
+  );
+  const [images, setImages] = useState([]);  // URL 陣列
+  const [isActive, setIsActive] = useState(true);
   const [err, setErr] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-  // 編輯模式：取回現有資料
+  // 編輯模式載入
   useEffect(() => {
     if (!isEdit) return;
     (async () => {
-      const res = await fetch(`/api/vendor/products/${id}`, {
-        credentials: "include",
-      });
+      const res = await fetch(`/api/vendor/products/${id}`, { credentials: "include" });
       if (!res.ok) return;
-      const data = await res.json(); // 期待 {product, images?}
+      const data = await res.json();
       const p = data.product || {};
       const imgs = data.images || [];
       setName(p.name || "");
@@ -57,8 +43,8 @@ export default function VendorProductForm() {
       setStock(p.stock ?? "");
       setDescription(p.description || "");
       setSpec(p.spec || spec);
-      setIsActive(!!p.isActive);
-      setImages(imgs.map((x) => x.url ?? x)); // 後端可能回 {url:"..."} 或直接是字串
+      setIsActive(!!(p.isActive ?? p.visible));
+      setImages(imgs.map((x) => x.url ?? x));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, id]);
@@ -66,8 +52,15 @@ export default function VendorProductForm() {
   async function onUpload(e) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const url = await uploadFile(f);
-    setImages((prev) => [...prev, url]);
+    setUploading(true);
+    try {
+      const url = await vUPLOAD(f);      // ★ POST /api/vendor/upload
+      setImages((prev) => [...prev, url]);
+    } catch (e) {
+      alert("上傳失敗：" + (e.message || e));
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function onSubmit(e) {
@@ -84,15 +77,16 @@ export default function VendorProductForm() {
       return setErr("請輸入有效的庫存數量");
     }
 
+    // 後端目前收 imageUrl（單張），若之後支援多圖可一併傳 images
     const body = {
       name: name.trim(),
       category,
       price: Number(price),
       stock: Number(stock),
       description,
-      spec,          // 後端用 TEXT 存 JSON 字串
-      images,        // 後端若是獨立 images 表，route 會一併處理
-      isActive,      // 上架狀態（沿用你的後端欄位）
+      spec,                // TEXT 存 JSON 字串
+      imageUrl: images[0] || "", // 先用第一張當主圖
+      isActive,            // 可覆寫預設的自動上架
     };
 
     try {
@@ -157,9 +151,7 @@ export default function VendorProductForm() {
         {/* 價格／庫存 */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-sm text-neutral-600">
-              價格（元）
-            </label>
+            <label className="mb-1 block text-sm text-neutral-600">價格（元）</label>
             <input
               className="border rounded w-full p-2"
               type="number"
@@ -170,9 +162,7 @@ export default function VendorProductForm() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm text-neutral-600">
-              庫存數量
-            </label>
+            <label className="mb-1 block text-sm text-neutral-600">庫存數量</label>
             <input
               className="border rounded w-full p-2"
               type="number"
@@ -218,14 +208,11 @@ export default function VendorProductForm() {
         <div>
           <label className="mb-1 block text-sm text-neutral-600">商品圖片</label>
           <input type="file" onChange={onUpload} />
+          {uploading && <div className="text-sm text-neutral-500 mt-1">上傳中…</div>}
           <div className="mt-2 grid grid-cols-4 gap-2">
             {images.map((u, i) => (
               <div key={i} className="relative">
-                <img
-                  src={u}
-                  alt=""
-                  className="w-full h-24 object-cover border rounded"
-                />
+                <img src={u} alt="" className="w-full h-24 object-cover border rounded" />
                 <button
                   type="button"
                   className="absolute -top-2 -right-2 bg-black text-white rounded-full w-6 h-6"
@@ -255,9 +242,7 @@ export default function VendorProductForm() {
           <button className="bg-teal-700 text-white px-4 py-2 rounded">
             {isEdit ? "儲存" : "建立"}
           </button>
-          <a className="border px-3 py-2 rounded" href="/vendor/products">
-            返回
-          </a>
+          <a className="border px-3 py-2 rounded" href="/vendor/products">返回</a>
         </div>
       </form>
     </div>

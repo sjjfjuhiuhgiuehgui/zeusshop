@@ -1,4 +1,3 @@
-// web/src/lib/vendorApi.js
 async function parseJSONSafe(res) {
   const text = await res.text();
   if (!text) return null;
@@ -6,7 +5,6 @@ async function parseJSONSafe(res) {
   catch (e) { console.error("Server returned non-JSON:", text); throw new Error("Invalid server response"); }
 }
 
-// 將後端回傳標準化為 { ok, vendor }（不論是純物件或包一層）
 function normalizeVendorResponse(data) {
   if (!data) return { ok: true, vendor: null };
   if (data.vendor) return { ok: data.ok !== false, vendor: data.vendor };
@@ -39,11 +37,11 @@ export async function vGET(path) {
   return normalizeVendorResponse(data);
 }
 
-// ★ 新增：上傳單張圖片，回傳 URL（/uploads/xxx）
+// ★ 單張圖片上傳：正確路徑 /api/vendor/upload，欄位名 file
 export async function vUPLOAD(file) {
   const fd = new FormData();
   fd.append('file', file);
-  const res = await fetch('/api/vendor/uploads', {
+  const res = await fetch('/api/vendor/upload', {
     method: 'POST',
     credentials: 'include',
     body: fd,
@@ -53,5 +51,6 @@ export async function vUPLOAD(file) {
     const msg = (data && (data.error || data.message)) || `${res.status} ${res.statusText}`;
     throw new Error(msg);
   }
-  return data && data.url; // e.g. "/uploads/1697050100000_img.jpg"
+  if (!data || !data.url) throw new Error('UPLOAD_NO_URL');
+  return data.url; // e.g. "/uploads/vendor/20241020_xxx.jpg"
 }
