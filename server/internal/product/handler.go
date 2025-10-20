@@ -12,8 +12,8 @@ import (
 )
 
 type Handler struct {
-	db   *gorm.DB      // 新增：直接用 GORM 查詢
-	repo *Repo         // 保留：給單筆/建立/更新/刪除沿用你的 Repo
+	db   *gorm.DB      // 用 GORM 直接查詢公開列表
+	repo *Repo         // 原本的 Repo，繼續用於單筆／新增／更新／刪除
 	rdb  *cache.Redis
 }
 
@@ -37,7 +37,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	q := h.db.Model(&Product{})
 
-	// 預設：只回上架（任一欄位為真）
+	// 預設：只回上架（任一欄位為 true）
 	visibleParam := strings.TrimSpace(c.Query("visible"))
 	if visibleParam == "" || visibleParam == "1" || strings.EqualFold(visibleParam, "true") {
 		q = q.Where("(visible = ? OR is_active = ?)", true, true)
@@ -76,11 +76,11 @@ func (h *Handler) List(c *gin.Context) {
 		return
 	}
 
-	// 輸出固定使用 products（前端在用這個鍵）
+	// 固定輸出鍵：products（前端已使用這個鍵）
 	c.JSON(http.StatusOK, gin.H{
 		"ok":       true,
 		"products": rows,
-		"total":    len(rows), // 簡單回一頁長度；若要回全部總數可再查一次 Count
+		"total":    len(rows),
 		"limit":    limit,
 		"offset":   offset,
 	})
@@ -126,7 +126,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	// 覆蓋可編輯欄位（對齊你的模型，含 Category / Visible）
+	// 覆蓋可編輯欄位
 	p.Name = in.Name
 	p.Description = in.Description
 	p.Price = in.Price
@@ -138,7 +138,7 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	p.Visible = in.Visible
 	p.Spec = in.Spec
-	p.VendorID = in.VendorID // 正常不會讓 Admin 改 VendorID；如需限制可移除
+	p.VendorID = in.VendorID // 若不希望 admin 改 VendorID，可移除此行
 
 	if err := h.repo.Update(c.Request.Context(), p); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": err.Error()})
@@ -182,5 +182,5 @@ func minMax(n, min, max int) int {
 	return n
 }
 
-// 為避免未使用引入報錯（若你暫時沒用 rdb/repo 的排序工具，以下是個示範）：
+// 為避免未使用引入報錯（若暫時沒用 rdb/repo 的排序工具）：
 var _ = sort.Slice
